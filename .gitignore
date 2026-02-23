@@ -1,0 +1,6 @@
+/.next/
+/node_modules/
+/.env
+/ai-pullrequest-reviewer-standalone.iml
+/package-lock.json
+/.idea/
