@@ -1,4 +1,4 @@
-import type { ApiUsage, Mode, ReviewDiagnosticData } from "./types";
+import {ApiUsage, DiagnosticDataLLM, Mode} from "./types";
 
 const CHARS_PER_TOKEN = 4;
 
@@ -13,7 +13,7 @@ export function buildDiagnostics(input: {
     maxOutputTokens: number;
     usage?: ApiUsage;
     responseId?: string;
-}): ReviewDiagnosticData {
+}): DiagnosticDataLLM {
     const systemChars = input.systemText.length;
     const userChars = input.userText.length;
     const systemTokensEst = estimateTokens(input.systemText);

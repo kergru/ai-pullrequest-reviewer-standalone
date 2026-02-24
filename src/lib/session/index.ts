@@ -1,9 +1,8 @@
 export type {
     FileEntry,
-    ReviewResult,
-    SessionState } from "./store";
+    SessionState } from "./types";
 export {
     putSession,
     getSession,
     deleteSession,
-    listSessionIds } from "./store";
+    listSessionIds } from "./session";

@@ -1,15 +1,162 @@
-import type { RelatedTest } from "./types";
-
 const DEFAULT_MODEL_INPUT_LIMIT = 120_000;
 const CHARS_PER_TOKEN = 4;
 
+export function buildReviewUserContentWithBudget(input: {
+    jira?: any;
+    filePath: string;
+    diffText: string;
+    systemPrompt: string;
+    userPrompt: string;
+    fileContent?: string;
+    relatedTests?: Array<{ path: string; content: string }>;
+    relatedSources?: Array<{ path: string; content: string }>;
+    relatedLiquibase?: Array<{ path: string; content: string }>;
+    reservedOutputTokens: number;
+}) {
+    const inputLimitTokens = getModelInputLimit();
+    const systemTokens = estimateTokens(input.systemPrompt);
+
+    const maxInputChars = Math.max(
+        2_000,
+        (inputLimitTokens - input.reservedOutputTokens - systemTokens) * CHARS_PER_TOKEN
+    );
+
+    const warnings: string[] = [];
+    const parts: string[] = [];
+
+    // Base block (always)
+    const baseRaw = [
+        "JIRA (Snapshot):",
+        JSON.stringify(input.jira ?? {}, null, 2),
+        "",
+        `FILE: ${input.filePath}`,
+        "",
+        "USER INSTRUCTIONS:",
+        input.userPrompt ?? "",
+    ].join("\n");
+
+    // state starts with max budget
+    const state: BudgetState = { remainingChars: maxInputChars, warnings };
+
+    // Per-block caps (optional via env; defaults are conservative)
+    const capBase = envInt("OPENAI_BUDGET_BASE_CHARS", 18_000);
+    const capDiff = envInt("OPENAI_BUDGET_DIFF_CHARS", 80_000);
+    const capFile = envInt("OPENAI_BUDGET_FILE_CHARS", 20_000);
+    const capTests = envInt("OPENAI_BUDGET_TESTS_CHARS", 18_000);
+    const capSources = envInt("OPENAI_BUDGET_SOURCES_CHARS", 12_000);
+    const capLiquibase = envInt("OPENAI_BUDGET_LIQUIBASE_CHARS", 12_000);
+
+    appendBlock(parts, state, "BASE", "", baseRaw, {
+        hardCapChars: capBase,
+        marker: "... USER CONTEXT TRUNCATED ...",
+        minKeepChars: 1500,
+    });
+
+    // Diff (always)
+    appendBlock(parts, state, "DIFF", "DIFF (unified):", input.diffText ?? "", {
+        hardCapChars: capDiff,
+        marker: `... DIFF TRUNCATED (limit ~${inputLimitTokens} tokens; tune OPENAI_MODEL_INPUT_LIMIT) ...`,
+        minKeepChars: 1500,
+    });
+
+    // File content (optional)
+    if (input.fileContent?.trim()) {
+        appendBlock(parts, state, "FILE_CONTENT", "FILE CONTENT (post-change):", input.fileContent, {
+            hardCapChars: capFile,
+            marker: `... FILE CONTENT TRUNCATED (limit ~${inputLimitTokens} tokens; tune OPENAI_MODEL_INPUT_LIMIT) ...`,
+            minKeepChars: 1000,
+        });
+    }
+
+    // Related tests (optional)
+    const tests = Array.isArray(input.relatedTests) ? input.relatedTests : [];
+    if (tests.length) {
+        const rendered = renderRelatedBlock(
+            tests.map(t => ({ path: t.path, content: normalizeTextForPrompt(t.content) }))
+        );
+        appendBlock(parts, state, "RELATED_TESTS", "RELATED JAVA TESTS:", rendered, {
+            hardCapChars: capTests,
+            marker: `... RELATED TESTS TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
+            minKeepChars: 800,
+        });
+    }
+
+    // Related sources (optional)
+    const sources = Array.isArray(input.relatedSources) ? input.relatedSources : [];
+    if (sources.length) {
+        const rendered = renderRelatedBlock(
+            sources.map(s => ({ path: s.path, content: normalizeTextForPrompt(s.content) }))
+        );
+        appendBlock(parts, state, "RELATED_SOURCES", "RELATED JAVA SOURCES:", rendered, {
+            hardCapChars: capSources,
+            marker: `... RELATED SOURCES TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
+            minKeepChars: 800,
+        });
+    }
+
+    // Liquibase (optional)
+    const lb = Array.isArray(input.relatedLiquibase) ? input.relatedLiquibase : [];
+    if (lb.length) {
+        const rendered = renderLiquibaseBlock(
+            lb.map(f => ({ path: f.path, content: normalizeTextForPrompt(f.content) }))
+        );
+        appendBlock(parts, state, "LIQUIBASE", "LIQUIBASE CONTEXT (changed in this PR):", rendered, {
+            hardCapChars: capLiquibase,
+            marker: `... LIQUIBASE CONTEXT TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
+            minKeepChars: 800,
+        });
+    }
+
+    // Warning preamble (only if needed)
+    const finalWarnings = warnings.length ? [`⚠️ WARNING: Input was truncated/limited. ${warnings.join(", ")}\n\n`] : [];
+    const finalUser = finalWarnings.join("") + parts.join("\n\n").trim();
+
+    return { finalUser, warnings, inputLimitTokens };
+}
+
+export function buildMetaReviewUserContentWithBudget(input: {
+    jira?: any;
+    fileReviewResults: any; // compact JSON payload
+    systemPrompt: string;
+    reservedOutputTokens: number;
+}) {
+    const inputLimitTokens = getModelInputLimit();
+    const systemTokens = estimateTokens(input.systemPrompt);
+
+    const maxInputChars = Math.max(
+        2_000,
+        (inputLimitTokens - input.reservedOutputTokens - systemTokens) * CHARS_PER_TOKEN
+    );
+
+    const warnings: string[] = [];
+    const parts: string[] = [];
+    const state: BudgetState = { remainingChars: maxInputChars, warnings };
+
+    const base = [
+        "JIRA:",
+        JSON.stringify(input.jira ?? {}, null, 2),
+        "",
+        "FINDINGS (structured, compact):",
+        JSON.stringify(input.fileReviewResults ?? [], null, 2),
+    ].join("\n");
+
+    appendBlock(parts, state, "META", "", base, {
+        hardCapChars: maxInputChars, // use everything available
+        marker: `... META REVIEW INPUT TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
+        minKeepChars: 1500,
+    });
+
+    const preamble = warnings.length
+        ? `⚠️ WARNING: Input was truncated/limited. ${warnings.join(", ")}\n\n`
+        : "";
+
+    return { userPrompt: preamble + parts.join("\n\n").trim(), warnings, inputLimitTokens };
+}
+
 function getModelInputLimit(): number {
     const raw = (process.env.OPENAI_MODEL_INPUT_LIMIT ?? "").trim();
-    if (!raw) return DEFAULT_MODEL_INPUT_LIMIT;
-
     const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return DEFAULT_MODEL_INPUT_LIMIT;
-
+    if (!raw || !Number.isFinite(n) || n <= 0) return DEFAULT_MODEL_INPUT_LIMIT;
     return Math.max(8_000, Math.floor(n));
 }
 
@@ -39,232 +186,65 @@ function truncateWithHeadTail(text: string, maxChars: number, marker: string) {
     };
 }
 
-function renderRelatedTestsBlock(tests: RelatedTest[]): string {
-    const chunks: string[] = [];
-    for (const t of tests) {
-        chunks.push(`--- ${t.path} ---`);
-        chunks.push(t.content);
-        chunks.push("");
-    }
-    return chunks.join("\n").trim();
+function renderRelatedBlock(related: Array<{ path: string; content: string }>): string {
+    return related
+        .map(r => `--- ${r.path} ---\n${r.content}\n`)
+        .join("\n")
+        .trim();
 }
 
-function renderLiquibaseChangedFilesBlock(paths: string[]): string {
-    const uniq = Array.from(new Set((paths ?? []).filter(Boolean)));
-
-    const chunks: string[] = [];
-    for (const p of uniq) {
-        const fileName = p.split(/[\\/]/).pop(); // funktioniert für / und \
-        if (fileName) chunks.push(`- ${fileName}`);
-    }
-
-    return chunks.join("\n").trim();
+function renderLiquibaseBlock(files: Array<{ path: string; content: string }>): string {
+    return files
+        .map(f => `--- ${f.path} ---\n${f.content}\n`)
+        .join("\n")
+        .trim();
 }
 
-export function buildReviewUserContentWithBudget(input: {
-    jira?: any;
-    filePath: string;
-    diffText: string;
-    systemPrompt: string;
-    userPrompt: string;
-    fileContent?: string;
-    relatedTests?: RelatedTest[];
-    liquibaseChangedFiles?: string[];
-    reservedOutputTokens: number;
-}) {
-    const inputLimitTokens = getModelInputLimit();
-    const warnings: string[] = [];
+type BudgetState = {
+    remainingChars: number;
+    warnings: string[];
+};
 
-    const userBase = [
-        "JIRA (Snapshot):",
-        JSON.stringify(input.jira ?? {}, null, 2),
-        "",
-        `FILE: ${input.filePath}`,
-        "",
-        "USER INSTRUCTIONS:",
-        input.userPrompt,
-    ].join("\n");
-
-    const systemTokens = estimateTokens(input.systemPrompt);
-    let safeBase = userBase;
-    let remainingTokens =
-        inputLimitTokens - input.reservedOutputTokens - systemTokens - estimateTokens(safeBase);
-
-    // If already over budget (rare), truncate base.
-    if (remainingTokens <= 0) {
-        const maxCharsForBase = Math.max(
-            1_000,
-            (inputLimitTokens - input.reservedOutputTokens - systemTokens) * CHARS_PER_TOKEN
-        );
-        const trBase = truncateWithHeadTail(
-            safeBase,
-            maxCharsForBase,
-            "... USER CONTEXT TRUNCATED (input too large before context/diff) ..."
-        );
-        safeBase = trBase.text;
-        if (trBase.truncated) {
-            warnings.push("USER_CONTEXT_TRUNCATED");
-            warnings.push(`USER_CONTEXT_TRUNCATED_REMOVED_CHARS:${trBase.removedChars}`);
-        }
-        remainingTokens =
-            inputLimitTokens - input.reservedOutputTokens - systemTokens - estimateTokens(safeBase);
-    }
-
-    const hasFileContent = Boolean(input.fileContent?.trim().length);
-    const fileContentRaw = hasFileContent ? normalizeTextForPrompt(input.fileContent!) : "";
-
-    const testsRaw = Array.isArray(input.relatedTests) ? input.relatedTests : [];
-    const hasTests = testsRaw.length > 0;
-
-    const lbRaw = Array.isArray(input.liquibaseChangedFiles) ? input.liquibaseChangedFiles : [];
-    const hasLiquibaseList = lbRaw.length > 0;
-
-    // Token share heuristic:
-    // - diff: 65%
-    // - file content: 20%
-    // - tests: 10%
-    // - liquibase file list: 5%
-    const diffShareBase = 0.65;
-    const fileShareBase = hasFileContent ? 0.2 : 0;
-    const testsShareBase = hasTests ? 0.10 : 0;
-    const lbShareBase = hasLiquibaseList ? 0.05 : 0;
-
-    const usedShare = diffShareBase + fileShareBase + testsShareBase + lbShareBase;
-    const diffShare = usedShare > 0 ? diffShareBase / usedShare : 1;
-    const fileShare = usedShare > 0 ? fileShareBase / usedShare : 0;
-    const testsShare = usedShare > 0 ? testsShareBase / usedShare : 0;
-    const lbShare = usedShare > 0 ? lbShareBase / usedShare : 0;
-
-    const diffBudgetChars = Math.max(0, Math.floor(remainingTokens * diffShare) * CHARS_PER_TOKEN);
-    const fileBudgetChars = Math.max(0, Math.floor(remainingTokens * fileShare) * CHARS_PER_TOKEN);
-    const testsBudgetChars = Math.max(0, Math.floor(remainingTokens * testsShare) * CHARS_PER_TOKEN);
-    const lbBudgetChars = Math.max(0, Math.floor(remainingTokens * lbShare) * CHARS_PER_TOKEN);
-
-    // Truncate file content
-    let safeFileContent = "";
-    if (hasFileContent) {
-        const trFile = truncateWithHeadTail(
-            fileContentRaw,
-            fileBudgetChars,
-            `... FILE CONTENT TRUNCATED (limit ~${inputLimitTokens} tokens; tune OPENAI_MODEL_INPUT_LIMIT) ...`
-        );
-        safeFileContent = trFile.text;
-        if (trFile.truncated) {
-            warnings.push("FILE_CONTENT_TRUNCATED");
-            warnings.push(`FILE_CONTENT_TRUNCATED_REMOVED_CHARS:${trFile.removedChars}`);
-        }
-    }
-
-    // Truncate tests as a single block
-    let safeTestsBlock = "";
-    if (hasTests) {
-        const rendered = renderRelatedTestsBlock(
-            testsRaw.map((t) => ({ path: t.path, content: normalizeTextForPrompt(t.content) }))
-        );
-        const trTests = truncateWithHeadTail(
-            rendered,
-            testsBudgetChars,
-            `... RELATED TESTS TRUNCATED (limit ~${inputLimitTokens} tokens; tune OPENAI_MODEL_INPUT_LIMIT) ...`
-        );
-        safeTestsBlock = trTests.text;
-        if (trTests.truncated) {
-            warnings.push("RELATED_TESTS_TRUNCATED");
-            warnings.push(`RELATED_TESTS_TRUNCATED_REMOVED_CHARS:${trTests.removedChars}`);
-        }
-    }
-
-    let safeLiquibaseBlock = "";
-    if (hasLiquibaseList) {
-        const rendered = renderLiquibaseChangedFilesBlock(lbRaw);
-        const trLb = truncateWithHeadTail(
-            rendered,
-            lbBudgetChars,
-            `... LIQUIBASE FILE LIST TRUNCATED (limit ~${inputLimitTokens} tokens) ...`
-        );
-        safeLiquibaseBlock = trLb.text;
-        if (trLb.truncated) {
-            warnings.push("LIQUIBASE_FILE_LIST_TRUNCATED");
-            warnings.push(`LIQUIBASE_FILE_LIST_TRUNCATED_REMOVED_CHARS:${trLb.removedChars}`);
-        }
-    }
-
-    // Truncate diff
-    const trDiff = truncateWithHeadTail(
-        input.diffText,
-        diffBudgetChars,
-        `... DIFF TRUNCATED (limit ~${inputLimitTokens} tokens; tune OPENAI_MODEL_INPUT_LIMIT) ...`
-    );
-    const safeDiff = trDiff.text;
-    if (trDiff.truncated) {
-        warnings.push("DIFF_TRUNCATED");
-        warnings.push(`DIFF_TRUNCATED_REMOVED_CHARS:${trDiff.removedChars}`);
-    }
-
-    const parts: string[] = [];
-    if (warnings.length > 0) {
-        parts.push(`⚠️ WARNING: Input was truncated for size. Warnings: ${warnings.join(", ")}`, "");
-    }
-
-    parts.push(safeBase, "");
-
-    if (hasFileContent) {
-        parts.push("FILE CONTENT (post-change):", safeFileContent, "");
-    }
-
-    if (hasTests) {
-        parts.push("RELATED JAVA TESTS (name patterns only):", safeTestsBlock, "");
-    }
-
-    if (hasLiquibaseList) {
-        parts.push("LIQUIBASE-RELATED FILES CHANGED IN THIS PR:", safeLiquibaseBlock, "");
-    }
-
-    parts.push("DIFF (unified):", safeDiff);
-
-    return { finalUser: parts.join("\n"), warnings, inputLimitTokens };
+function envInt(name: string, fallback: number) {
+    const raw = (process.env[name] ?? "").trim();
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-export function buildMetaReviewUserContentWithBudget(input: {
-    jira?: any;
-    fileReviewResults: any; // already compact JSON payload
-    systemPrompt: string;
-    reservedOutputTokens: number;
-}) {
-    const inputLimitTokens = getModelInputLimit();
+function appendBlock(
+    parts: string[],
+    state: BudgetState,
+    blockId: string,
+    title: string,
+    bodyRaw: string,
+    opts?: { marker?: string; hardCapChars?: number; minKeepChars?: number }
+) {
+    if (state.remainingChars <= 0) return;
 
-    const userPromptBase = [
-        "JIRA:",
-        JSON.stringify(input.jira ?? {}, null, 2),
-        "",
-        "FINDINGS (structured, compact):",
-        JSON.stringify(input.fileReviewResults ?? [], null, 2),
-    ].join("\n");
+    const body = normalizeTextForPrompt(bodyRaw ?? "");
+    if (!body.trim()) return;
 
-    const systemTokens = estimateTokens(input.systemPrompt);
-    const baseTokens = estimateTokens(userPromptBase);
+    const marker = opts?.marker ?? `... ${blockId} TRUNCATED ...`;
+    const hardCap = opts?.hardCapChars ?? Number.MAX_SAFE_INTEGER;
+    const minKeep = opts?.minKeepChars ?? 800; // avoid adding useless tiny crumbs
 
-    const warnings: string[] = [];
+    const allowed = Math.min(state.remainingChars, hardCap);
 
-    if (systemTokens + baseTokens + input.reservedOutputTokens <= inputLimitTokens) {
-        return { userPrompt: userPromptBase, warnings, inputLimitTokens };
+    if (allowed < minKeep) {
+        state.warnings.push(`${blockId}_SKIPPED_NO_BUDGET`);
+        return;
     }
 
-    const maxCharsForUser = Math.max(
-        2_000,
-        (inputLimitTokens - input.reservedOutputTokens - systemTokens) * CHARS_PER_TOKEN
-    );
+    const tr = truncateWithHeadTail(body, allowed, marker);
 
-    const tr = truncateWithHeadTail(
-        userPromptBase,
-        maxCharsForUser,
-        `... META REVIEW INPUT TRUNCATED (limit ~${inputLimitTokens} tokens; tune OPENAI_MODEL_INPUT_LIMIT) ...`
-    );
+    // Cost includes heading + blank lines too; keep it simple: subtract after push.
+    const blockText = `${title}\n${tr.text}\n`;
+    parts.push(blockText);
+
+    state.remainingChars -= blockText.length;
 
     if (tr.truncated) {
-        warnings.push("META_INPUT_TRUNCATED");
-        warnings.push(`META_INPUT_TRUNCATED_REMOVED_CHARS:${tr.removedChars}`);
+        state.warnings.push(`${blockId}_TRUNCATED`);
+        state.warnings.push(`${blockId}_TRUNCATED_REMOVED_CHARS:${tr.removedChars}`);
     }
-
-    const preamble = `⚠️ WARNING: Input was truncated for size. Warnings: ${warnings.join(", ")}\n\n`;
-    return { userPrompt: preamble + tr.text, warnings, inputLimitTokens };
 }

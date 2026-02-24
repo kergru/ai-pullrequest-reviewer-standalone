@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, deleteSession } from "@/lib/session";
 import { runMetaReview } from "@/lib/review";
+import type {FileReviewResult, ReviewStructuredOutput} from "@/lib/review/types";
 
 export const runtime = "nodejs";
 
@@ -19,15 +20,10 @@ export async function POST(req: Request) {
     s.inFlight = true;
 
     try {
-        const fileReviewResults = Object.values(s.reviews)
-            .filter((r: any) => r?.status === "done" || r?.status === "done_with_warnings")
-            .map((r: any) => ({
-                filePath: r.filePath,
-                severitySummary: r.severitySummary ?? {},
-                outputStructured: r.outputStructured ?? {},
-                outputText: r.outputText ?? "",
-                diagnostics: r.diagnostics ?? undefined,
-            }));
+        const fileReviewResults: ReviewStructuredOutput[] = Object.values(s.reviews)
+            .filter((r): r is FileReviewResult => r.status === "done" || r.status === "done_with_warnings")
+            .filter(r => r.outputStructured !== null)
+            .map((r) => r.outputStructured!);
 
         if (!fileReviewResults.length) {
             return NextResponse.json(
@@ -36,17 +32,15 @@ export async function POST(req: Request) {
             );
         }
 
-        const mr = await runMetaReview({ model: s.model, jira: s.jira, fileReviewResults });
-
-        if (body.deleteAfter) {
-            deleteSession(s.id);
-        }
-
-        return NextResponse.json({
-            status: "done",
-            metaReview: mr,
-            deleted: body.deleteAfter,
+        const mr = await runMetaReview({
+            model: s.model,
+            jira: s.jira,
+            fileReviewResults,
         });
+
+        if (body.deleteAfter) deleteSession(s.id);
+
+        return NextResponse.json({ status: "done", metaReview: mr, deleted: body.deleteAfter });
     } catch (e: any) {
         return NextResponse.json({ error: e?.message ?? "Meta review failed" }, { status: 500 });
     } finally {

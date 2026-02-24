@@ -44,4 +44,3 @@ export function shouldFetchFileContent(filePath: string, diffText: string) {
 
     return { fetch: envBool("OPENAI_FETCH_FILE_FOR_MEDIUM_DIFFS", true), reason: `medium_diff:${diffLen}` };
 }
-

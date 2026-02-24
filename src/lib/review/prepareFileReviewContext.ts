@@ -1,170 +1,105 @@
-import { findDiffForPath, splitUnifiedDiffByFile, extOf } from "@/lib/diff-util";
-import { vcs } from "@/lib/vcs/client";
-import { SessionLike, PreparedFileReviewContext } from "./types";
+import type { PreparedFileReviewContext } from "./types";
+import type { SessionState } from "@/lib/session";
 import { SYSTEM_REVIEW_PROMPT } from "@/lib/prompts/systemPrompt";
+import { vcs } from "@/lib/vcs/client";
+import { clampTextHeadTail, envBool, envInt, shouldFetchFileContent } from "@/lib/review/policy";
+import { loadContextBundle } from "@/lib/review/loadRelatedFilesContext";
 import { buildReviewUserContentWithBudget } from "@/lib/llm";
-import { clampTextHeadTail, envBool, envInt, shouldFetchFileContent } from "./policy";
-import { isLiquibaseChangelog, filterLiquibaseFilesFromChanges } from "@/lib/review/liquibase/liquibaseChangedFiles";
+import { findDiffForPath, splitUnifiedDiffByFile } from "@/lib/diff-util";
 
 export async function prepareFileReviewContext(
-    session: SessionLike,
+    session: SessionState,
     filePath: string
 ): Promise<PreparedFileReviewContext> {
     const headSha = session.pr.headSha;
     const fullDiff = await vcs.getDiff(session.pr);
     const byFile = splitUnifiedDiffByFile(fullDiff);
+    cacheDiffsIntoSession(session, byFile);
 
     const diffText = findDiffForPath(byFile, filePath) ?? "";
     if (!diffText) {
         throw new Error(`No diff found for filePath=${filePath}. Diff splitter couldn't match.`);
     }
 
-    // ---------- FILE CONTENT ----------
+    // -------- FILE CONTENT (optional) --------
     let fileContent = "";
-    const fileContentMeta = {
-        attempted: false,
-        fetched: false,
-        reason: "not_evaluated",
-    } as { attempted: boolean; fetched: boolean; reason: string; clamped?: boolean };
-
     const decision = shouldFetchFileContent(filePath, diffText);
 
     if (decision.fetch && headSha) {
-        fileContentMeta.attempted = true;
-        fileContentMeta.reason = decision.reason;
-
         try {
             const raw = await vcs.getFileContentAtCommit(session.pr, filePath, headSha);
-
             const clamped = clampTextHeadTail(
                 raw,
                 envInt("OPENAI_MAX_FILE_CONTENT_CHARS", 25_000),
                 "... FILE CONTENT CLAMPED ..."
             );
-
             fileContent = clamped.text;
-            fileContentMeta.fetched = true;
-            fileContentMeta.clamped = clamped.clamped;
         } catch (e: any) {
-            console.warn(
-                `⚠️ Could not fetch file content for ${filePath} at headSha=${headSha}: ${e?.message ?? String(e)}`
-            );
-        }
-    } else {
-        fileContentMeta.reason = !headSha ? "no_headSha" : decision.reason;
-    }
-
-    // ---------- RELATED JAVA TESTS ----------
-    const MAX_TEST_FILES = envInt("OPENAI_MAX_JAVA_TEST_FILES", 3);
-    const MAX_TEST_CHARS = envInt("OPENAI_MAX_JAVA_TEST_CHARS", 18_000);
-    const ENABLE_TEST_CONTEXT = envBool("OPENAI_INCLUDE_JAVA_TESTS", true);
-
-    let relatedTests: Array<{ path: string; content: string }> = [];
-
-    const testsMeta = {
-        attempted: false,
-        fetchedCount: 0,
-        reason: "disabled_or_not_applicable",
-        usedIndex: false,
-    };
-
-    const isJavaSource = extOf(filePath) === "java";
-    const isTestFile = filePath.toLowerCase().includes("src/test/");
-
-    if (ENABLE_TEST_CONTEXT && isJavaSource && !isTestFile && headSha && MAX_TEST_FILES > 0) {
-        testsMeta.attempted = true;
-        testsMeta.usedIndex = false;
-        testsMeta.reason = "java_test_same_package";
-
-        console.log("loading related tests for", filePath, "from", headSha);
-
-        const baseName = baseNameOf(filePath);
-        const testDir = toTestPackageDir(filePath);
-
-        try {
-            const files = await vcs.listFilesInDirAtCommit(session.pr, headSha, testDir);
-            const matches = files
-                .filter((p) => {
-                    const name = p.slice(p.lastIndexOf("/") + 1);
-                    return (
-                        name.startsWith(baseName) &&
-                        (name.endsWith("Test.java") || name.endsWith("Tests.java"))
-                    );
-                })
-                .slice(0, MAX_TEST_FILES);
-
-            const rawTests = await Promise.all(
-                matches.map(async (p) => {
-                    const filePath = testDir + "/" + p;
-                    const content = await vcs.getFileContentAtCommit(session.pr, filePath, headSha);
-                    return { path: p, content };
-                })
-            );
-
-            relatedTests = rawTests.map((t) => {
-                const clamped = clampTextHeadTail(
-                    t.content,
-                    MAX_TEST_CHARS,
-                    "... TEST FILE CLAMPED ..."
-                );
-                return { path: t.path, content: clamped.text };
-            });
-
-        } catch (e: any) {
-            console.warn(`⚠️ Could not load tests from ${testDir}: ${e?.message ?? String(e)}`);
+            console.warn(`⚠️ Could not fetch file content for ${filePath}: ${e?.message ?? String(e)}`);
         }
     }
 
-    // ---------- LIQUIBASE CONTEXT ----------
-    let liquibaseChangedFiles: string[] | undefined = undefined;
+    // -------- SYSTEM PROMPT + CONTEXT --------
+    const baseSystemPrompt = SYSTEM_REVIEW_PROMPT;
 
-    if (isLiquibaseChangelog(filePath)) {
-        liquibaseChangedFiles = filterLiquibaseFilesFromChanges(session.files);
-    }
+    const bundle = await loadContextBundle(session, filePath, headSha, {
+        vcs,
+        clampTextHeadTail,
+        envInt,
+        envBool,
+    });
 
-    // ---------- FIXED SYSTEM PROMPT ----------
-    const systemPrompt = SYSTEM_REVIEW_PROMPT;
+    const finalSystemPrompt = baseSystemPrompt + bundle.systemPromptSuffix;
 
-
-    // ---------- BUILD PROMPT WITH BUDGET ----------
+    // -------- BUILD PROMPT WITH BUDGET --------
     const maxOutputTokens = envInt("OPENAI_REVIEW_MAX_OUTPUT_TOKENS", 1500);
-    const reservedOutputTokens = maxOutputTokens;
+
     const { finalUser, warnings, inputLimitTokens } = buildReviewUserContentWithBudget({
         jira: session.jira,
         filePath,
         diffText,
-        systemPrompt,
-        userPrompt: session.prompt,
-        fileContent,
-        relatedTests,
-        liquibaseChangedFiles,
-        reservedOutputTokens,
+        systemPrompt: finalSystemPrompt,
+        userPrompt: session.prompt ?? "",
+        fileContent: fileContent || undefined,
+        relatedTests: bundle.relatedTests,
+        relatedSources: bundle.relatedSources,
+        relatedLiquibase: bundle.relatedLiquibase,
+        reservedOutputTokens: maxOutputTokens,
     });
+
+    const meta = {
+        headSha: headSha ?? null,
+        loadedContext: {
+            tests: bundle.relatedTests.length,
+            sources: bundle.relatedSources.length,
+            liquibase: bundle.relatedLiquibase.length,
+            fileContent: Boolean(fileContent),
+        },
+        warnings,
+    };
 
     return {
         filePath,
-        systemPrompt: systemPrompt,
+        systemPrompt: finalSystemPrompt,
         userPrompt: finalUser,
         warnings,
         inputLimitTokens,
-        reservedOutputTokens,
+        reservedOutputTokens: maxOutputTokens,
         maxOutputTokens,
-        meta: {
-            headSha,
-            fileContent: fileContentMeta,
-            tests: testsMeta,
-        },
+        meta,
     };
 }
 
-function toTestPackageDir(mainFilePath: string) {
-    return mainFilePath
-        .replaceAll("\\", "/")
-        .replace(/^src\/main\/java\//, "src/test/java/")
-        .replace(/\/[^/]+\.java$/, "");
-}
-
-function baseNameOf(javaFile: string) {
-    const f = javaFile.replaceAll("\\", "/");
-    return f.slice(f.lastIndexOf("/") + 1, -5); // XY
+function cacheDiffsIntoSession(
+    session: SessionState,
+    byFile: Map<string, string>
+) {
+    for (const file of session.files) {
+        if (!file.diffText) {
+            const diff = byFile.get(file.path);
+            if (diff) {
+                file.diffText = diff;
+            }
+        }
+    }
 }

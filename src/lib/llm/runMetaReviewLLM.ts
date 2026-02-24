@@ -1,28 +1,16 @@
-import { llmRequest } from "./client";
-import type { MetaReviewResult } from "./types";
-import { buildDiagnostics } from "./review-diagnostic-data";
 
-function extractJsonBlock(text: string): any | null {
-    const match = text.match(/```json\s*([\s\S]*?)\s*```/i);
-    if (!match) return null;
-    try {
-        return JSON.parse(match[1]);
-    } catch {
-        return null;
-    }
-}
+import { buildDiagnostics } from "./review-diagnostic-data";
+import { llmRequest } from "./client";
+import type { ReviewResultLLM } from "./types";
 
 export async function runMetaReviewLLM(input: {
     model: string;
     systemPrompt: string;
     userPrompt: string;
-
-    warnings: string[];
     inputLimitTokens: number;
-
     reservedOutputTokens: number;
     maxOutputTokens: number;
-}): Promise<MetaReviewResult> {
+}): Promise<ReviewResultLLM> {
     const call = await llmRequest({
         model: input.model,
         systemPrompt: input.systemPrompt,
@@ -31,8 +19,7 @@ export async function runMetaReviewLLM(input: {
         maxOutputTokens: input.maxOutputTokens,
     });
 
-    const outputText = call.text;
-    const outputStructured = extractJsonBlock(outputText) ?? {};
+    const outputMarkdown = call.text;
 
     const diagnostics = buildDiagnostics({
         model: input.model,
@@ -48,11 +35,8 @@ export async function runMetaReviewLLM(input: {
     });
 
     return {
-        outputText,
-        outputStructured,
-        warnings: input.warnings ?? [],
-        inputLimitTokens: input.inputLimitTokens,
-        maxOutputTokens: input.maxOutputTokens,
+        outputMarkdown,
+        outputStructured: null, // no structured output for meta review
         diagnostics,
     };
 }

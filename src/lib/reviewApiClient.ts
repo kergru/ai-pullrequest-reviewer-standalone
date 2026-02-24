@@ -1,6 +1,5 @@
 import type { SessionDto, CreateSessionRequest, MetaReviewRequest } from "@/lib/types";
 
-
 async function ok<T>(r: Response): Promise<T> {
   if (!r.ok) throw new Error(await r.text());
   return r.json() as Promise<T>;

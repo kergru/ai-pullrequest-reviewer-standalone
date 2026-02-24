@@ -1,4 +1,3 @@
-// ./prompts/metaReviewPrompt.ts
 export const META_REVIEW_PROMPT = `
 You are a senior reviewer creating a pull request meta review.
 
@@ -11,7 +10,7 @@ You are aggregating and prioritizing — not re-reviewing the code.
 Tasks:
 1) Decide merge readiness: READY or REQUEST_CHANGES.
 2) Identify top risks (especially cross-file and architectural).
-3) Assess Jira acceptance criteria coverage.
+3) Assess Jira description and acceptance criteria coverage. Focus on Jira coverge.
 4) Provide concrete next steps.
 
 Decision rules:
@@ -32,7 +31,7 @@ Coverage states:
 
 Output requirements:
 
-1) Markdown:
+Provide a human-readable meta review as Markdown with this structure:
 
 Start with:
 Merge readiness: READY | REQUEST_CHANGES
@@ -53,34 +52,4 @@ Sections grouped by category with bullet points:
 
 End with:
 Concrete next steps (checklist).
-
-2) Machine-readable JSON block:
-Provide a JSON block between \`\`\`json and \`\`\`:
-
-{
-  "mergeReadiness": "READY|REQUEST_CHANGES",
-  "justification": ["..."],
-  "topRisks": [
-    {
-      "category": "Correctness|Security|Performance|Maintainability|Tests|Jira",
-      "severity": "blocker|major|minor|nit",
-      "text": "..."
-    }
-  ],
-  "jiraCoverage": [
-    {
-      "criterion": "...",
-      "status": "Covered|Partially Covered|Not Covered|Unknown",
-      "notes": "..."
-    }
-  ],
-  "nextSteps": ["..."],
-  "missingContext": ["..."]
-}
-
-Rules for JSON:
-- The JSON must be valid.
-- Do not include keys outside the schema.
-- The JSON must be consistent with the Markdown (same readiness, same risks).
-- If the Jira ticket does not contain explicit acceptance criteria, populate jiraCoverage with a single item where status is Unknown and explain why.
-`;
+`.trim();

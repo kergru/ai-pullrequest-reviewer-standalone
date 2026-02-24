@@ -224,7 +224,7 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
                 {showMetaDiagnostics ? <ReviewDiagnosticsPanel review={meta} /> : null}
 
                 <div style={{ marginTop: 20, fontSize: 14, lineHeight: 1.6 }}>
-                    <ReactMarkdown>{stripJsonBlocks(meta.outputText ?? "")}</ReactMarkdown>
+                    <ReactMarkdown>{meta.outputMarkdown ?? ""}</ReactMarkdown>
                 </div>
             </main>
         );
@@ -303,11 +303,4 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
             </section>
         </main>
     );
-}
-
-function stripJsonBlocks(md: string): string {
-    const s = String(md ?? "");
-    const closed = s.replaceAll(/```json\s*[\s\S]*?\s*```/gi, "");
-    const open = closed.replace(/```json[\s\S]*$/i, "");
-    return open.trim();
 }

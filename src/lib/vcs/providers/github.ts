@@ -70,8 +70,8 @@ export type GhPrRef = {
     prNumber: number;
     url: string;
     title: string;
-    baseSha?: string; // "toCommit"
-    headSha?: string; // "fromCommit"
+    baseSha: string; // "toCommit"
+    headSha: string; // "fromCommit"
 };
 
 export function parseGitHubPrUrl(prUrl: string): { owner: string; repo: string; prNumber: number } {

@@ -36,12 +36,12 @@ Provide a JSON block between \`\`\`json and \`\`\` with this structure:
 {
   "findings": [
     {
+      "id": "unique identifier for the issue",
       "severity": "blocker|major|minor|nit",
       "category": "Correctness|Security|Performance|Maintainability|Testability|Style",
-      "file": "string",
       "lineStart": number | null,
       "lineEnd": number | null,
-      "title": "short summary",
+      "title": "very short summary",
       "problem": "what is wrong",
       "impact": "why it matters",
       "recommendation": "how to fix"
@@ -64,9 +64,10 @@ Rules for JSON:
 - If any information is unknown, use null for lineStart/lineEnd and explain in missingContext.
 
 2) Human-readable review in Markdown:
+Provide a Markdown block with this structure:
 - Group findings by category (use the category names above as section headings).
 - For each finding provide:
   - Problem
   - Impact
   - Recommended fix (prefer concrete code-level suggestions)
-`;
+`.trim();

@@ -1,23 +1,31 @@
-import type { FileReviewResults } from "./types";
 import { prepareMetaReviewContext } from "./prepareMetaReviewContext";
 import { runMetaReviewLLM } from "@/lib/llm";
-import type { MetaReviewResult } from "@/lib/llm/types";
+import {MetaReviewResult, ReviewStructuredOutput} from "./types";
 
 export async function runMetaReview(input: {
     model: string;
     jira?: any;
-    fileReviewResults: FileReviewResults;
+    fileReviewResults: ReviewStructuredOutput[];
 }): Promise<MetaReviewResult> {
 
     const ctx = await prepareMetaReviewContext(input);
 
-    return runMetaReviewLLM({
+    const reviewResultLLM = await runMetaReviewLLM({
         model: ctx.model,
         systemPrompt: ctx.systemPrompt,
         userPrompt: ctx.userPrompt,
-        warnings: ctx.warnings,
         inputLimitTokens: ctx.inputLimitTokens,
         reservedOutputTokens: ctx.reservedOutputTokens,
         maxOutputTokens: ctx.maxOutputTokens,
     });
+
+    return {
+        outputMarkdown: reviewResultLLM.outputMarkdown,
+        warnings: ctx.warnings,
+        diagnostics: {
+            inputLimitTokens: ctx.inputLimitTokens,
+            maxOutputTokens: ctx.maxOutputTokens,
+            metaLLM: reviewResultLLM.diagnostics,
+        },
+    }
 }

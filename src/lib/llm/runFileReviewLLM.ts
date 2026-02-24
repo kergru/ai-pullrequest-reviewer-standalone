@@ -1,16 +1,8 @@
-import { llmRequest } from "./client";
-import type { ReviewFileResult } from "./types";
-import { buildDiagnostics } from "./review-diagnostic-data";
 
-function extractJsonBlock(text: string): any | null {
-    const match = text.match(/```json\s*([\s\S]*?)\s*```/i);
-    if (!match) return null;
-    try {
-        return JSON.parse(match[1]);
-    } catch {
-        return null;
-    }
-}
+import { llmRequest } from "./client";
+import { buildDiagnostics } from "./review-diagnostic-data";
+import type { ReviewResultLLM } from "./types";
+
 
 export async function runFileReviewLLM(input: {
     model: string;
@@ -19,7 +11,7 @@ export async function runFileReviewLLM(input: {
     inputLimitTokens: number;
     reservedOutputTokens: number;
     maxOutputTokens: number;
-}): Promise<ReviewFileResult> {
+}): Promise<ReviewResultLLM> {
     const call = await llmRequest({
         model: input.model,
         systemPrompt: input.system,
@@ -28,8 +20,10 @@ export async function runFileReviewLLM(input: {
         maxOutputTokens: input.maxOutputTokens,
     });
 
-    const outputText = call.text;
-    const outputStructured = extractJsonBlock(outputText) ?? {};
+    const outputText = call.text ?? "";
+
+    const outputJson = extractJsonBlock(outputText);
+    const outputMarkdown = stripJsonBlocks(outputText);
 
     const diagnostics = buildDiagnostics({
         model: input.model,
@@ -45,11 +39,20 @@ export async function runFileReviewLLM(input: {
     });
 
     return {
-        outputText,
-        outputStructured,
-        warnings: [],
-        inputLimitTokens: input.inputLimitTokens,
-        maxOutputTokens: input.maxOutputTokens,
+        outputMarkdown: outputMarkdown,
+        outputJson: outputJson,
         diagnostics,
     };
+}
+
+function extractJsonBlock(text: string): any | null {
+    const match = text.match(/```json\s*([\s\S]*?)\s*```/i);
+    return match ? match[1] : null;
+}
+
+function stripJsonBlocks(text: string): string {
+    const s = String(text ?? "");
+    const closed = s.replaceAll(/```json\s*[\s\S]*?\s*```/gi, "");
+    const open = closed.replace(/```json[\s\S]*$/i, "");
+    return open.trim();
 }

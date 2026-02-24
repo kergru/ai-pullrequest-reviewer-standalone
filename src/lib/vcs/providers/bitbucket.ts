@@ -73,8 +73,8 @@ export type BbsPrRef = {
     prId: number;
     url: string;
     title: string;
-    toCommit?: string;
-    fromCommit?: string;
+    toCommit: string;
+    fromCommit: string;
 };
 
 export function parseBbsPrUrl(prUrl: string): { projectKey: string; repoSlug: string; prId: number } {

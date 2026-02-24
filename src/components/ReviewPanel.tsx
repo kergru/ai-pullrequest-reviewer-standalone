@@ -44,7 +44,7 @@ export function ReviewPanel(
     const canRunMeta = !busy && reviewedCount > 0;
 
     const canToggleIgnore =
-        !busy && !isReviewingThis && hasReview && (isDone || isIgnored || review?.status === "failed");
+        !busy && !isReviewingThis && hasReview && (isDone || review?.status === "failed");
 
     return (
         <div
@@ -166,7 +166,7 @@ export function ReviewPanel(
                     {showDiagnostics ? <ReviewDiagnosticsPanel review={review} /> : null}
 
                     <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
-                        <ReactMarkdown>{stripJsonFencedBlocks(review.outputText ?? "")}</ReactMarkdown>
+                        <ReactMarkdown>{review.outputMarkdown ?? ""}</ReactMarkdown>
                     </div>
                 </>
             ) : (
@@ -181,14 +181,10 @@ export function ReviewPanel(
                     {"diagnostics" in metaResult ? <ReviewDiagnosticsPanel review={metaResult} /> : null}
 
                     <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
-                        <ReactMarkdown>{stripJsonFencedBlocks(review.outputText ?? "")}</ReactMarkdown>
+                        <ReactMarkdown>{metaResult.outputMarkdown ?? ""}</ReactMarkdown>
                     </div>
                 </>
             ) : null}
         </div>
     );
-}
-
-function stripJsonFencedBlocks(md: string): string {
-    return String(md ?? "").replace(/```json\s*[\s\S]*?\s*```/gi, "").trim();
 }

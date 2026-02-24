@@ -56,7 +56,6 @@ export async function POST(req: Request) {
 
         const jira = body.jiraKey ? await getJiraIssue(body.jiraKey) : undefined;
 
-        // NEW: cache repo file index once per session (best-effort)
         let repoFileIndex: string[] | undefined = undefined;
         if (pr.baseSha) {
             try {
