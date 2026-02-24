@@ -1,4 +1,4 @@
-import {ApiUsage, DiagnosticDataLLM, Mode} from "./types";
+import type { ApiUsage, DiagnosticDataLLM, Mode } from "./types";
 
 const CHARS_PER_TOKEN = 4;
 
