@@ -1,10 +1,12 @@
 import { prepareMetaReviewContext } from "./prepareMetaReviewContext";
 import { runMetaReviewLLM } from "@/lib/llm";
-import {MetaReviewResult, ReviewStructuredOutput} from "./types";
+import type { MetaReviewResult, ReviewStructuredOutput } from "./types";
 
 export async function runMetaReview(input: {
     model: string;
+    language: string;
     jira?: any;
+    userPrompt?: string;
     fileReviewResults: ReviewStructuredOutput[];
 }): Promise<MetaReviewResult> {
 
@@ -21,11 +23,13 @@ export async function runMetaReview(input: {
 
     return {
         outputMarkdown: reviewResultLLM.outputMarkdown,
-        warnings: ctx.warnings,
-        diagnostics: {
-            inputLimitTokens: ctx.inputLimitTokens,
-            maxOutputTokens: ctx.maxOutputTokens,
-            metaLLM: reviewResultLLM.diagnostics,
+        diagnostics: reviewResultLLM.diagnostics,
+        meta: {
+            loadedContext: {
+                countFileReviews: input.fileReviewResults.length,
+                countFindings: input.fileReviewResults.reduce((sum, r) => sum + r.findings.length, 0),
+            },
+            warnings: ctx.warnings,
         },
     }
 }

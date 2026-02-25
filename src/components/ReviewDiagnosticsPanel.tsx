@@ -15,22 +15,38 @@ function fmtMs(ms?: number) {
     return `${(ms / 1000).toFixed(2)} s`;
 }
 
+function isObject(x: unknown): x is Record<string, any> {
+    return typeof x === "object" && x !== null;
+}
+
+function pickWarnings(review: any): string[] {
+    const w1 = review?.meta?.warnings;
+    if (Array.isArray(w1)) return w1;
+    const w2 = review?.warnings;
+    if (Array.isArray(w2)) return w2;
+    const w3 = review?.diagnostics?.warnings;
+    if (Array.isArray(w3)) return w3;
+    return [];
+}
+
 export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) {
-    const diagnostics = review?.diagnostics ?? {};
-    const llm = diagnostics?.metaLLM ?? null;
+    const diagnostics = review?.diagnostics;
 
-    const warnings: string[] =
-        (Array.isArray(review?.meta?.warnings) && review.meta.warnings) ||
-        (Array.isArray(review?.warnings) && review.warnings) ||
-        [];
+    const llm =
+        (isObject(diagnostics) && isObject(diagnostics.metaLLM) && diagnostics.metaLLM) ||
+        (isObject(diagnostics) && typeof diagnostics.model === "string" && diagnostics) ||
+        null;
 
-    // bei dir steckt Missing Context primär im Structured Output
+    const warnings = pickWarnings(review);
+
     const contextRequests: string[] =
         (Array.isArray(diagnostics?.contextRequests) && diagnostics.contextRequests) ||
         (Array.isArray(review?.outputStructured?.missingContext) && review.outputStructured.missingContext) ||
         [];
 
-    const loadedContext = review?.meta?.loadedContext; // { tests, sources, liquibase, fileContent }
+    const isFileReview = review?.meta?.loadedContext.fileContent !== undefined;
+    const isMetaRewiew = !isFileReview;
+    const loadedContext = review?.meta?.loadedContext;
 
     const inputLimit =
         llm?.inputLimitTokens ??
@@ -112,8 +128,8 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
                         <strong>Chars:</strong>{" "}
                         {fmt(llm?.requestChars?.total)}{" "}
                         <span style={{ color: "#6b7280" }}>
-              (system {fmt(llm?.requestChars?.system)} / user {fmt(llm?.requestChars?.user)})
-            </span>
+                          (system {fmt(llm?.requestChars?.system)} / user {fmt(llm?.requestChars?.user)})
+                        </span>
                     </div>
                     <div>
                         <strong>Response ID:</strong> {llm?.responseId ?? "—"}
@@ -121,8 +137,8 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
                 </div>
             </div>
 
-            {/* Context (aus review.meta.loadedContext) */}
-            {loadedContext && (
+            {/* Context loaded */}
+            {isFileReview && loadedContext && (
                 <div style={{ marginTop: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>Context loaded</div>
                     <div style={{ fontSize: 12, color: "#111827", marginTop: 4 }}>
@@ -132,12 +148,23 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
                         <div>
                             <strong>Tests:</strong> {fmt(loadedContext.tests)}
                             <span style={{ marginLeft: 12 }}>
-                <strong>Sources:</strong> {fmt(loadedContext.sources)}
-              </span>
+                                <strong>Sources:</strong> {fmt(loadedContext.sources)}
+                            </span>
                             <span style={{ marginLeft: 12 }}>
-                <strong>Liquibase:</strong> {fmt(loadedContext.liquibase)}
-              </span>
-                        </div>
+                                <strong>Liquibase:</strong> {fmt(loadedContext.liquibase)}
+                            </span>
+                         </div>
+                    </div>
+                </div>
+            )}
+            {isMetaRewiew && loadedContext?.countFileReviews !== undefined && (
+                <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>Meta Review based on:</div>
+                    <div style={{ fontSize: 12, color: "#111827", marginTop: 4 }}>
+                        <strong>File Reviews:</strong> {fmt(loadedContext.countFileReviews)}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#111827", marginTop: 4 }}>
+                        <strong>Sum Findings:</strong> {fmt(loadedContext.countFindings)}
                     </div>
                 </div>
             )}
@@ -150,9 +177,9 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
                         {warnings.length > 0 && (
                             <div>
                                 <strong>Warnings:</strong>{" "}
-                                <span style={{ color: warnings.some((w) => w.includes("TRUNCATED")) ? "#b45309" : "#111827" }}>
-                  {warnings.join(", ")}
-                </span>
+                                <span style={{ color: warnings.some((w: string) => w.includes("TRUNCATED")) ? "#b45309" : "#111827" }}>
+                                  {warnings.join(", ")}
+                                </span>
                             </div>
                         )}
                         {contextRequests.length > 0 && (

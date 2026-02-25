@@ -17,8 +17,8 @@ export async function runFileReview(session: SessionState, filePath: string): Pr
 
     const llm = await runFileReviewLLM({
         model: session.model,
-        system: ctx.systemPrompt,
-        user: ctx.userPrompt,
+        systemPrompt: ctx.systemPrompt,
+        userPrompt: ctx.userPrompt,
         inputLimitTokens: ctx.inputLimitTokens,
         reservedOutputTokens: ctx.reservedOutputTokens,
         maxOutputTokens: ctx.maxOutputTokens,
@@ -34,11 +34,7 @@ export async function runFileReview(session: SessionState, filePath: string): Pr
         outputMarkdown: llm.outputMarkdown,
         outputStructured: structured,
         severitySummary: structured?.summary ?? { blocker: 0, major: 0, minor: 0, nit: 0 },
-        diagnostics: {
-            inputLimitTokens: ctx.inputLimitTokens,
-            maxOutputTokens: ctx.maxOutputTokens,
-            metaLLM: diagnosticLLM,
-        },
+        diagnostics: diagnosticLLM,
         meta: ctx.meta,
     };
 

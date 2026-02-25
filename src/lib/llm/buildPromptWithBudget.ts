@@ -1,10 +1,14 @@
+import { SYSTEM_SOURCEFILE_PROMPT } from "@/lib/prompts/sourcefilePrompt";
+import { SYSTEM_TESTFILE_PROMPT } from "@/lib/prompts/testfilePrompt";
+import { SYSTEM_LIQUIBASE_PROMPT } from "@/lib/prompts/liquibasePrompt";
 const DEFAULT_MODEL_INPUT_LIMIT = 120_000;
 const CHARS_PER_TOKEN = 4;
 
-export function buildReviewUserContentWithBudget(input: {
+export function buildFileReviewUserContentWithBudget(input: {
     jira?: any;
     filePath: string;
     diffText: string;
+    language: string;
     systemPrompt: string;
     userPrompt: string;
     fileContent?: string;
@@ -24,15 +28,17 @@ export function buildReviewUserContentWithBudget(input: {
     const warnings: string[] = [];
     const parts: string[] = [];
 
+    console.log("JIRA CONTEXT:", input.jira);
+
     // Base block (always)
     const baseRaw = [
-        "JIRA (Snapshot):",
+        "HUMAN READALE MARKDOWN LANGUAGE: " + input.language,
+        "",
+        "JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),
         "",
         `FILE: ${input.filePath}`,
         "",
-        "USER INSTRUCTIONS:",
-        input.userPrompt ?? "",
     ].join("\n");
 
     // state starts with max budget
@@ -45,6 +51,8 @@ export function buildReviewUserContentWithBudget(input: {
     const capTests = envInt("OPENAI_BUDGET_TESTS_CHARS", 18_000);
     const capSources = envInt("OPENAI_BUDGET_SOURCES_CHARS", 12_000);
     const capLiquibase = envInt("OPENAI_BUDGET_LIQUIBASE_CHARS", 12_000);
+
+    appendBlock(parts, state, "USER INSTRUCTIONS", "USER INSTRUCTIONS:", input.userPrompt, {});
 
     appendBlock(parts, state, "BASE", "", baseRaw, {
         hardCapChars: capBase,
@@ -74,7 +82,7 @@ export function buildReviewUserContentWithBudget(input: {
         const rendered = renderRelatedBlock(
             tests.map(t => ({ path: t.path, content: normalizeTextForPrompt(t.content) }))
         );
-        appendBlock(parts, state, "RELATED_TESTS", "RELATED JAVA TESTS:", rendered, {
+        appendBlock(parts, state, "RELATED_TESTS", SYSTEM_TESTFILE_PROMPT, rendered, {
             hardCapChars: capTests,
             marker: `... RELATED TESTS TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -87,7 +95,7 @@ export function buildReviewUserContentWithBudget(input: {
         const rendered = renderRelatedBlock(
             sources.map(s => ({ path: s.path, content: normalizeTextForPrompt(s.content) }))
         );
-        appendBlock(parts, state, "RELATED_SOURCES", "RELATED JAVA SOURCES:", rendered, {
+        appendBlock(parts, state, "RELATED_SOURCES", SYSTEM_SOURCEFILE_PROMPT, rendered, {
             hardCapChars: capSources,
             marker: `... RELATED SOURCES TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -100,7 +108,7 @@ export function buildReviewUserContentWithBudget(input: {
         const rendered = renderLiquibaseBlock(
             lb.map(f => ({ path: f.path, content: normalizeTextForPrompt(f.content) }))
         );
-        appendBlock(parts, state, "LIQUIBASE", "LIQUIBASE CONTEXT (changed in this PR):", rendered, {
+        appendBlock(parts, state, "LIQUIBASE", SYSTEM_LIQUIBASE_PROMPT, rendered, {
             hardCapChars: capLiquibase,
             marker: `... LIQUIBASE CONTEXT TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -116,7 +124,9 @@ export function buildReviewUserContentWithBudget(input: {
 
 export function buildMetaReviewUserContentWithBudget(input: {
     jira?: any;
-    fileReviewResults: any; // compact JSON payload
+    fileReviewResults: any;
+    language: string;
+    userPrompt: string;
     systemPrompt: string;
     reservedOutputTokens: number;
 }) {
@@ -133,12 +143,16 @@ export function buildMetaReviewUserContentWithBudget(input: {
     const state: BudgetState = { remainingChars: maxInputChars, warnings };
 
     const base = [
-        "JIRA:",
+        "HUMAN READALE MARKDOWN LANGUAGE: " + input.language,
+        "",
+        "JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),
         "",
         "FINDINGS (structured, compact):",
         JSON.stringify(input.fileReviewResults ?? [], null, 2),
     ].join("\n");
+
+    appendBlock(parts, state, "USER INSTRUCTIONS", "USER INSTRUCTIONS:", input.userPrompt, {});
 
     appendBlock(parts, state, "META", "", base, {
         hardCapChars: maxInputChars, // use everything available

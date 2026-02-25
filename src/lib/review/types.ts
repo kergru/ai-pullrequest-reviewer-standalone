@@ -42,10 +42,16 @@ export type ReviewFinding = {
 };
 
 export type ReviewStructuredOutput = {
+    filePath: string;
     findings: ReviewFinding[];
     summary: SeveritySummary;
     missingContext: string[];
 };
+
+export type FileReviewFindingsMeta = {
+    countFileReviews: number;
+    countFindings: number;
+}
 
 export type FileReviewMeta = {
     headSha: string | null;
@@ -63,10 +69,15 @@ export type FileReviewResult = {
     meta?: FileReviewMeta;
 };
 
+export type MetatReviewMeta = {
+    loadedContext: {countFileReviews: number, countFindings: number }
+    warnings: string[];
+};
+
 export type MetaReviewResult = {
     outputMarkdown: string;
-    warnings: string[];
     diagnostics?: DiagnosticDataLLM;
+    meta?:MetatReviewMeta;
 };
 
 export type TextRef = {
@@ -84,5 +95,4 @@ export type ContextBundle = {
     relatedTests: TextRef[];
     relatedSources: TextRef[];
     relatedLiquibase: TextRef[];
-    systemPromptSuffix: string;
 };

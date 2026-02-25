@@ -1,7 +1,3 @@
-import { SYSTEM_SOURCEFILE_PROMPT } from "@/lib/prompts/sourcefilePrompt";
-import { SYSTEM_TESTFILE_PROMPT } from "@/lib/prompts/testfilePrompt";
-import { SYSTEM_LIQUIBASE_PROMPT } from "@/lib/prompts/liquibasePrompt";
-
 import type { SessionState } from "@/lib/session";
 import {ChangedFile, ContextBundle, TextRef} from "@/lib/review/types";
 
@@ -74,25 +70,7 @@ export async function loadContextBundle(
         relatedLiquibase = sortLiquibaseFirstChangelog(relatedLiquibase);
     }
 
-    // ---- PROMPT SUFFIX ----
-    let suffix = "";
-
-    if (isJavaSourceFile(filePath)) {
-        suffix += section("Review hints for Java source files", SYSTEM_SOURCEFILE_PROMPT);
-        suffix += renderFilesBlock("TEST FILES RELATED TO THIS SOURCE FILE", relatedTests);
-    }
-
-    if (isJavaTestFile(filePath)) {
-        suffix += section("Review hints for Java test files", SYSTEM_TESTFILE_PROMPT);
-        suffix += renderFilesBlock("SOURCE FILES RELATED TO THIS TEST FILE", relatedSources);
-    }
-
-    if (isLiquibaseFile(filePath)) {
-        suffix += section("Liquibase review hints", SYSTEM_LIQUIBASE_PROMPT);
-        suffix += renderFilesBlock("LIQUIBASE FILES RELATED TO THIS CHANGE", relatedLiquibase);
-    }
-
-    return { relatedTests, relatedSources, relatedLiquibase, systemPromptSuffix: suffix };
+    return { relatedTests, relatedSources, relatedLiquibase };
 }
 
 // ----------------------------------------------------------------

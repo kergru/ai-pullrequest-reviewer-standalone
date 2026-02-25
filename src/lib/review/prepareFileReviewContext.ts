@@ -4,7 +4,7 @@ import { SYSTEM_REVIEW_PROMPT } from "@/lib/prompts/systemPrompt";
 import { vcs } from "@/lib/vcs/client";
 import { clampTextHeadTail, envBool, envInt, shouldFetchFileContent } from "@/lib/review/policy";
 import { loadContextBundle } from "@/lib/review/loadRelatedFilesContext";
-import { buildReviewUserContentWithBudget } from "@/lib/llm";
+import { buildFileReviewUserContentWithBudget } from "@/lib/llm";
 import { findDiffForPath, splitUnifiedDiffByFile } from "@/lib/diff-util";
 
 export async function prepareFileReviewContext(
@@ -38,10 +38,9 @@ export async function prepareFileReviewContext(
             console.warn(`⚠️ Could not fetch file content for ${filePath}: ${e?.message ?? String(e)}`);
         }
     }
+    console.log("DECISION on fetching file content:", { filePath, ...decision, contentLength: fileContent.length });
 
-    // -------- SYSTEM PROMPT + CONTEXT --------
-    const baseSystemPrompt = SYSTEM_REVIEW_PROMPT;
-
+    // -------- CONTEXT --------
     const bundle = await loadContextBundle(session, filePath, headSha, {
         vcs,
         clampTextHeadTail,
@@ -49,16 +48,15 @@ export async function prepareFileReviewContext(
         envBool,
     });
 
-    const finalSystemPrompt = baseSystemPrompt + bundle.systemPromptSuffix;
-
     // -------- BUILD PROMPT WITH BUDGET --------
     const maxOutputTokens = envInt("OPENAI_REVIEW_MAX_OUTPUT_TOKENS", 1500);
 
-    const { finalUser, warnings, inputLimitTokens } = buildReviewUserContentWithBudget({
+    const { finalUser, warnings, inputLimitTokens } = buildFileReviewUserContentWithBudget({
         jira: session.jira,
         filePath,
         diffText,
-        systemPrompt: finalSystemPrompt,
+        language: session.language,
+        systemPrompt: SYSTEM_REVIEW_PROMPT,
         userPrompt: session.prompt ?? "",
         fileContent: fileContent || undefined,
         relatedTests: bundle.relatedTests,
@@ -80,7 +78,7 @@ export async function prepareFileReviewContext(
 
     return {
         filePath,
-        systemPrompt: finalSystemPrompt,
+        systemPrompt: SYSTEM_REVIEW_PROMPT,
         userPrompt: finalUser,
         warnings,
         inputLimitTokens,

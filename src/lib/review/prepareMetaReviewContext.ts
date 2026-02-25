@@ -1,6 +1,6 @@
 import { META_REVIEW_PROMPT } from "@/lib/prompts/metaReviewPrompt";
 import { buildMetaReviewUserContentWithBudget } from "@/lib/llm";
-import type { PreparedMetaReviewContext, ReviewStructuredOutput } from "./types";
+import type {FileReviewResult, PreparedMetaReviewContext, ReviewStructuredOutput} from "./types";
 
 function envInt(name: string, fallback: number) {
     const raw = (process.env[name] ?? "").trim();
@@ -10,7 +10,9 @@ function envInt(name: string, fallback: number) {
 
 export async function prepareMetaReviewContext(input: {
     model: string;
+    language: string;
     jira?: any;
+    userPrompt?: string;
     fileReviewResults: ReviewStructuredOutput[];
 }): Promise<PreparedMetaReviewContext> {
     const systemPrompt = META_REVIEW_PROMPT;
@@ -19,18 +21,20 @@ export async function prepareMetaReviewContext(input: {
     const maxOutputTokens = envInt("OPENAI_META_REVIEW_MAX_OUTPUT_TOKENS", 1200);
     const reservedOutputTokens = maxOutputTokens;
 
+    console.log("fileReviewResults:", JSON.stringify(input.fileReviewResults, null, 2));
     const compactResults = compactMetaReview(input.fileReviewResults);
-
+    console.log("\n\ncompactResults:", JSON.stringify(compactResults, null, 2));
     // ✅ richtiger Aufruf
     const { userPrompt, warnings, inputLimitTokens } = buildMetaReviewUserContentWithBudget({
         jira: input.jira,
-        fileReviewResults: compactResults, // ✅ nicht “fileReviewResults” shadowing / Verwechslungsgefahr
-        systemPrompt,                      // ✅ das ist der system prompt, den du auch ans Modell gibst
-        reservedOutputTokens,              // ✅ entspricht maxOutputTokens
+        fileReviewResults: compactResults,
+        language: input.language,
+        userPrompt: input.userPrompt ?? "",
+        systemPrompt,
+        reservedOutputTokens,
     });
 
     if (warnings.length) {
-        // eslint-disable-next-line no-console
         console.warn(`⚠️ AI meta review input warnings: ${warnings.join(", ")}`);
     }
 

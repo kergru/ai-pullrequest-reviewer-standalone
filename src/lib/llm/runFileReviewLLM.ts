@@ -6,16 +6,20 @@ import type { ReviewResultLLM } from "./types";
 
 export async function runFileReviewLLM(input: {
     model: string;
-    system: string;
-    user: string;
+    systemPrompt: string;
+    userPrompt: string;
     inputLimitTokens: number;
     reservedOutputTokens: number;
     maxOutputTokens: number;
 }): Promise<ReviewResultLLM> {
+
+    console.log("########### SYSTEM PROMPT:\n:", input.systemPrompt);
+    console.log("\n\n########### USER PROMPT:\n", input.userPrompt);
+
     const call = await llmRequest({
         model: input.model,
-        systemPrompt: input.system,
-        userPrompt: input.user,
+        systemPrompt: input.systemPrompt,
+        userPrompt: input.userPrompt,
         temperature: 0.1,
         maxOutputTokens: input.maxOutputTokens,
     });
@@ -29,8 +33,8 @@ export async function runFileReviewLLM(input: {
         model: input.model,
         mode: call.mode,
         durationMs: call.durationMs,
-        systemText: input.system,
-        userText: input.user,
+        systemPrompt: input.systemPrompt,
+        userPrompt: input.userPrompt,
         inputLimitTokens: input.inputLimitTokens,
         reservedOutputTokens: input.reservedOutputTokens,
         maxOutputTokens: input.maxOutputTokens,

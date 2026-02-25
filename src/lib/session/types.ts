@@ -30,4 +30,6 @@ export type SessionState = {
 
     inFlight: boolean;
     repoFileIndex?: string[];
+
+    language: string;
 };

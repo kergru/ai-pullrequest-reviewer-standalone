@@ -6,23 +6,25 @@ export function buildDiagnostics(input: {
     model: string;
     mode: Mode;
     durationMs: number;
-    systemText: string;
-    userText: string;
+    systemPrompt: string;
+    userPrompt: string;
     inputLimitTokens: number;
     reservedOutputTokens: number;
     maxOutputTokens: number;
     usage?: ApiUsage;
     responseId?: string;
 }): DiagnosticDataLLM {
-    const systemChars = input.systemText.length;
-    const userChars = input.userText.length;
-    const systemTokensEst = estimateTokens(input.systemText);
-    const userTokensEst = estimateTokens(input.userText);
+    const systemChars = input.systemPrompt.length;
+    const userChars = input.userPrompt.length;
+    const systemTokensEst = estimateTokens(input.systemPrompt);
+    const userTokensEst = estimateTokens(input.userPrompt);
 
     return {
         model: input.model,
         mode: input.mode,
         durationMs: input.durationMs,
+        systemPrompt: input.systemPrompt,
+        userPrompt: input.userPrompt,
         requestChars: { system: systemChars, user: userChars, total: systemChars + userChars },
         estimatedInputTokens: {
             system: systemTokensEst,

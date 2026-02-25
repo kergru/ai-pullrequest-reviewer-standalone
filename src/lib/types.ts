@@ -3,6 +3,7 @@ export type CreateSessionRequest = {
     jiraKey?: string;
     prompt: string;
     model: string;
+    language: string;
     ttlMinutes?: number;
     autoReviewFirstFile?: boolean;
 };

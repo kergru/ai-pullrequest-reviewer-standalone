@@ -35,6 +35,13 @@ export function shouldFetchFileContent(filePath: string, diffText: string) {
             .filter(Boolean)
     );
 
+    const isNewFile =
+        diffText.includes("new file mode") ||
+        diffText.includes("--- /dev/null") ||
+        /\@\@ -0,0 \+\d+,\d+ \@\@/.test(diffText);
+    if (isNewFile) return { fetch: false, reason: "new_file_diff_already_contains_full_content" };
+
+
     const ext = extOf(filePath);
     const diffLen = (diffText ?? "").length;
 

@@ -22,8 +22,10 @@ export async function POST(req: Request) {
     try {
         const fileReviewResults: ReviewStructuredOutput[] = Object.values(s.reviews)
             .filter((r): r is FileReviewResult => r.status === "done" || r.status === "done_with_warnings")
-            .filter(r => r.outputStructured !== null)
-            .map((r) => r.outputStructured!);
+            .map((r) => ({
+                ...r.outputStructured!,
+                filePath: r.filePath,
+            }));
 
         if (!fileReviewResults.length) {
             return NextResponse.json(
@@ -34,6 +36,8 @@ export async function POST(req: Request) {
 
         const mr = await runMetaReview({
             model: s.model,
+            language: s.language,
+            userPrompt: s.prompt,
             jira: s.jira,
             fileReviewResults,
         });

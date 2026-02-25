@@ -11,6 +11,10 @@ export async function runMetaReviewLLM(input: {
     reservedOutputTokens: number;
     maxOutputTokens: number;
 }): Promise<ReviewResultLLM> {
+
+    console.log("########### SYSTEM PROMPT:\n:", input.systemPrompt);
+    console.log("\n\n########### USER PROMPT:\n", input.userPrompt);
+
     const call = await llmRequest({
         model: input.model,
         systemPrompt: input.systemPrompt,
@@ -25,8 +29,8 @@ export async function runMetaReviewLLM(input: {
         model: input.model,
         mode: call.mode,
         durationMs: call.durationMs,
-        systemText: input.systemPrompt,
-        userText: input.userPrompt,
+        systemPrompt: input.systemPrompt,
+        userPrompt: input.userPrompt,
         inputLimitTokens: input.inputLimitTokens,
         reservedOutputTokens: input.reservedOutputTokens,
         maxOutputTokens: input.maxOutputTokens,
@@ -36,7 +40,7 @@ export async function runMetaReviewLLM(input: {
 
     return {
         outputMarkdown,
-        outputStructured: null, // no structured output for meta review
+        outputJson: null, // no structured output for meta review
         diagnostics,
     };
 }
