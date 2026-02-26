@@ -249,7 +249,7 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
             >
                 <strong>PR AI Review</strong>
                 <span style={{ color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {session.pr?.title} ({session.pr?.projectKey}/{session.pr?.repoSlug} #{session.pr?.prId})
+                    {session.pr?.displayTitle}
                 </span>
                 <span style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
                     Model: <b>{session.model}</b>

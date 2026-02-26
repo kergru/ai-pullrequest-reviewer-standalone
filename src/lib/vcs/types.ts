@@ -19,6 +19,7 @@ export type VcsConfig =
 export type VcsPrRef<TNative = unknown> = {
     url: string;
     title: string;
+    displayTitle: string;
     baseSha: string;
     headSha: string;
     repo: {

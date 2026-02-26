@@ -52,7 +52,7 @@ export type ReviewDto = {
 
 export type SessionDto = {
     sessionId: string;
-    pr: { url: string; projectKey: string; repoSlug: string; prId: number; title: string; toCommit?: string; fromCommit?: string };
+    pr: { url: string; projectKey: string; repoSlug: string; prId: number; title: string; displayTitle: string, toCommit?: string; fromCommit?: string };
     jira: null | { key: string; summary: string; description: string; acceptanceCriteria: string };
     prompt: string;
     model: string;

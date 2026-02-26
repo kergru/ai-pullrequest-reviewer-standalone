@@ -1,12 +1,75 @@
+// typescript
+// Datei: `src/components/DiffViewer.tsx`
 import React from "react";
 
 export function DiffViewer({ diff }: { diff: string }) {
     const lines = diff.split("\n");
 
+    // 1) Pre-scan, um maximale Zeilennummern (für Breite) zu bestimmen
+    let scanOld = 0;
+    let scanNew = 0;
+    let maxOld = 0;
+    let maxNew = 0;
+
+    function parseHunk(header: string) {
+        const match = header.match(/@@ -(\d+),?\d* \+(\d+),?/);
+        if (match) {
+            scanOld = Number(match[1]);
+            scanNew = Number(match[2]);
+        }
+    }
+
+    for (const line of lines) {
+        if (line.startsWith("@@")) {
+            parseHunk(line);
+            continue;
+        }
+        if (
+            line.startsWith("diff --git") ||
+            line.startsWith("index ") ||
+            line.startsWith("--- ") ||
+            line.startsWith("+++ ")
+        ) {
+            continue;
+        }
+
+        if (line.startsWith("+")) {
+            maxNew = Math.max(maxNew, scanNew);
+            scanNew++;
+        } else if (line.startsWith("-")) {
+            maxOld = Math.max(maxOld, scanOld);
+            scanOld++;
+        } else {
+            maxOld = Math.max(maxOld, scanOld);
+            maxNew = Math.max(maxNew, scanNew);
+            scanOld++;
+            scanNew++;
+        }
+    }
+
+    const maxLine = Math.max(maxOld, maxNew, 1);
+    const digitCount = String(maxLine).length;
+
+    // Nutze 'ch' für monospace-ziffern: +1 für etwas Puffer, Mindestbreite 3ch
+    const lnCh = Math.max(3, digitCount + 1);
+
+    const lnStyle: React.CSSProperties = {
+        width: `${lnCh}ch`,
+        minWidth: `${lnCh}ch`,
+        flexShrink: 0,
+        textAlign: "left", // linksbündig wie gewünscht
+        paddingLeft: 0,
+        color: "#6e7781",
+        userSelect: "none",
+        overflow: "hidden",
+        whiteSpace: "nowrap"
+    };
+
+    // 2) Rendering, Zeilen zählen neu setzen
     let oldLine = 0;
     let newLine = 0;
 
-    function parseHunk(header: string) {
+    function parseHunkForRender(header: string) {
         const match = header.match(/@@ -(\d+),?\d* \+(\d+),?/);
         if (match) {
             oldLine = Number(match[1]);
@@ -16,52 +79,54 @@ export function DiffViewer({ diff }: { diff: string }) {
 
     return (
         <pre style={preStyle}>
-      {lines.map((line, i) => {
-          if (line.startsWith("@@")) {
-              parseHunk(line);
-              return (
-                  <Row key={i} left="" right="" content={line} type="hunk" />
-              );
-          }
+            {lines.map((line, i) => {
+                if (line.startsWith("@@")) {
+                    parseHunkForRender(line);
+                    return null;
+                }
 
-          if (
-              line.startsWith("diff --git") ||
-              line.startsWith("index ") ||
-              line.startsWith("--- ") ||
-              line.startsWith("+++ ")
-          ) {
-              return null;
-          }
+                if (
+                    line.startsWith("diff --git") ||
+                    line.startsWith("index ") ||
+                    line.startsWith("--- ") ||
+                    line.startsWith("+++ ")
+                ) {
+                    return null;
+                }
 
-          let left: number | "" = "";
-          let right: number | "" = "";
+                let left: number | "" = "";
+                let right: number | "" = "";
 
-          if (line.startsWith("+")) {
-              right = newLine++;
-          } else if (line.startsWith("-")) {
-              left = oldLine++;
-          } else {
-              left = oldLine++;
-              right = newLine++;
-          }
+                if (line.startsWith("+")) {
+                    right = newLine++;
+                } else if (line.startsWith("-")) {
+                    left = oldLine++;
+                } else {
+                    left = oldLine++;
+                    right = newLine++;
+                }
 
-          return (
-              <Row
-                  key={i}
-                  left={left}
-                  right={right}
-                  content={line}
-                  type={
-                      line.startsWith("+")
-                          ? "add"
-                          : line.startsWith("-")
-                              ? "del"
-                              : "ctx"
-                  }
-              />
-          );
-      })}
-    </pre>
+                // Anzeige: entferne ein führendes '+', '-' oder Leerzeichen
+                const displayContent = line.replace(/^([+\-\s])/, "");
+
+                return (
+                    <Row
+                        key={i}
+                        left={left}
+                        right={right}
+                        content={displayContent}
+                        type={
+                            line.startsWith("+")
+                                ? "add"
+                                : line.startsWith("-")
+                                    ? "del"
+                                    : "ctx"
+                        }
+                        lnStyle={lnStyle}
+                    />
+                );
+            })}
+        </pre>
     );
 }
 
@@ -69,12 +134,14 @@ function Row({
                  left,
                  right,
                  content,
-                 type
+                 type,
+                 lnStyle
              }: {
     left: number | "";
     right: number | "";
     content: string;
     type: "add" | "del" | "ctx" | "hunk";
+    lnStyle: React.CSSProperties;
 }) {
     const style =
         type === "add"
@@ -86,21 +153,13 @@ function Row({
                     : {};
 
     return (
-        <div style={{ display: "flex", whiteSpace: "pre" }}>
+        <div style={{ display: "flex", whiteSpace: "pre", alignItems: "flex-start" }}>
             <span style={lnStyle}>{left}</span>
             <span style={lnStyle}>{right}</span>
             <span style={{ flex: 1, ...style }}>{content}</span>
         </div>
     );
 }
-
-const lnStyle: React.CSSProperties = {
-    width: 40,
-    textAlign: "right",
-    paddingRight: 8,
-    color: "#6e7781",
-    userSelect: "none"
-};
 
 const preStyle: React.CSSProperties = {
     margin: 0,
@@ -110,5 +169,6 @@ const preStyle: React.CSSProperties = {
     fontSize: 12,
     background: "#ffffff",
     color: "#24292f",
-    borderLeft: "1px solid #e5e7eb"
+    borderLeft: "1px solid #e5e7eb",
+    overflowX: "auto"
 };

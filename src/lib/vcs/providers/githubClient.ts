@@ -29,6 +29,7 @@ export function createGitHubClient(cfg: Extract<VcsConfig, { provider: "github" 
             return {
                 url: prUrl,
                 title: pr.title,
+                displayTitle: `${pr.title} (${owner}/${repo} #${prNumber})`,
                 baseSha: pr.baseSha,
                 headSha: pr.headSha,
                 repo: { host, ownerOrProject: owner, nameOrSlug: repo },
