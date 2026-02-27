@@ -26,8 +26,7 @@ export type DiagnosticDataLLM = {
     estimatedInputTokens: { system: number; user: number; total: number };
 
     inputLimitTokens: number;
-    reservedOutputTokens: number;
-    maxOutputTokens: number;
+    outputLimitTokens: number;
 
     usage?: ApiUsage;
     responseId?: string;

@@ -1,4 +1,4 @@
-export const SYSTEM_TESTFILE_PROMPT = `
+export const TESTFILE_CONTEXT = `
 RELATED TESTS CONTEXT:
 tests should be written in Gherkin syntax and follow the Given-When-Then structure.
 method name should be in format: given[condition]_when[action]_then[expectedResult].

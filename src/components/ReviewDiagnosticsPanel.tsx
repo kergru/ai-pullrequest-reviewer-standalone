@@ -48,20 +48,9 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
     const isMetaRewiew = !isFileReview;
     const loadedContext = review?.meta?.loadedContext;
 
-    const inputLimit =
-        llm?.inputLimitTokens ??
-        diagnostics?.inputLimitTokens ??
-        review?.inputLimitTokens;
+    const inputLimit = diagnostics?.inputLimitTokens;
+    const outputLimit = diagnostics?.outputLimitTokens;
 
-    const reservedOut =
-        llm?.reservedOutputTokens ??
-        diagnostics?.reservedOutputTokens ??
-        review?.reservedOutputTokens;
-
-    const maxOut =
-        llm?.maxOutputTokens ??
-        diagnostics?.maxOutputTokens ??
-        review?.maxOutputTokens;
 
     const hasAnything =
         !!llm ||
@@ -69,8 +58,7 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
         contextRequests.length > 0 ||
         !!loadedContext ||
         typeof inputLimit === "number" ||
-        typeof maxOut === "number" ||
-        typeof reservedOut === "number";
+        typeof outputLimit === "number";
 
     if (!hasAnything) return null;
 
@@ -87,17 +75,14 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
             <div style={{ marginTop: 8, fontSize: 12, color: "#111827" }}>
                 <strong>Model:</strong> {llm?.model ?? "—"}{" "}
                 <span style={{ marginLeft: 12 }}>
-          <strong>Duration:</strong> {fmtMs(llm?.durationMs)}
-        </span>
+                  <strong>Duration:</strong> {fmtMs(llm?.durationMs)}
+                </span>
                 <span style={{ marginLeft: 12 }}>
-          <strong>Input limit:</strong> {fmt(inputLimit)}
-        </span>
+                  <strong>Input limit:</strong> {fmt(inputLimit)}
+                </span>
                 <span style={{ marginLeft: 12 }}>
-          <strong>Reserved output:</strong> {fmt(reservedOut)}
-        </span>
-                <span style={{ marginLeft: 12 }}>
-          <strong>Max output:</strong> {fmt(maxOut)}
-        </span>
+                  <strong>Output limit:</strong> {fmt(outputLimit)}
+                </span>
             </div>
 
             {/* Tokens */}
@@ -108,8 +93,8 @@ export function ReviewDiagnosticsPanel({ review }: ReviewDiagnosticsPanelProps) 
                         <strong>Estimated input:</strong>{" "}
                         {fmt(llm?.estimatedInputTokens?.total)}{" "}
                         <span style={{ color: "#6b7280" }}>
-              (system {fmt(llm?.estimatedInputTokens?.system)} / user {fmt(llm?.estimatedInputTokens?.user)})
-            </span>
+                          (system {fmt(llm?.estimatedInputTokens?.system)} / user {fmt(llm?.estimatedInputTokens?.user)})
+                        </span>
                     </div>
                     <div>
                         <strong>Actual usage:</strong>{" "}

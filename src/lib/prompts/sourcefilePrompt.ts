@@ -1,4 +1,4 @@
-export const SYSTEM_SOURCEFILE_PROMPT = `
+export const SOURCE_FILES_CONTEXT = `
 RELATED SOURCES CONTEXT:
 validate the code also for maintainability, readability, and adherence to best practices, in addition to correctness, security, and performance.
 validate that a given comment matches the code it is supposed to describe, and that it is helpful and not misleading.

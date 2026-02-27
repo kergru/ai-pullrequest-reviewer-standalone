@@ -1,6 +1,5 @@
 import type { VcsPrRef } from "@/lib/vcs";
-import type { ReviewStatus } from "@/lib/types";
-import type { FileReviewResult } from "@/lib/review/types";
+import type { ReviewStatus, FileReviewResult } from "@/lib/review";
 
 export type FileEntry = {
     path: string;

@@ -1,32 +1,40 @@
-import type {Category, ReviewStatus, Severity, SeveritySummary} from "@/lib/types";
-import type { DiagnosticDataLLM } from "@/lib/llm/types";
+import type { DiagnosticDataLLM } from "@/lib/llm";
 
-export type PreparedFileReviewContext = {
+export type ReviewStatus = "pending" | "running" | "done" | "done_with_warnings" | "failed" | "ignored";
+
+export type Severity = "blocker" | "major" | "minor" | "nit";
+
+export type SeveritySummary = { blocker: number; major: number; minor: number; nit: number };
+
+export type Category =
+    | "Correctness"
+    | "Security"
+    | "Performance"
+    | "Maintainability"
+    | "Testability"
+    | "Style";
+export type FileReviewResult = {
     filePath: string;
-
-    systemPrompt: string;
-    userPrompt: string;
-
-    warnings: string[];
-
-    inputLimitTokens: number;
-    reservedOutputTokens: number;
-    maxOutputTokens: number;
-
-    meta: FileReviewMeta;
+    status: ReviewStatus;
+    //human readable
+    outputMarkdown: string;
+    //machine readable
+    outputStructured: ReviewStructuredOutput | null;
+    severitySummary: SeveritySummary;
+    diagnostics?: DiagnosticDataLLM;
+    meta?: FileReviewMeta;
 };
 
-export type PreparedMetaReviewContext = {
-    model: string;
-
-    systemPrompt: string;
-    userPrompt: string;
-
+export type FileReviewMeta = {
+    loadedContext: { tests: number; sources: number; liquibase: number; fileContent: boolean };
     warnings: string[];
+};
 
-    inputLimitTokens: number;
-    reservedOutputTokens: number;
-    maxOutputTokens: number;
+export type ReviewStructuredOutput = {
+    filePath: string;
+    findings: ReviewFinding[];
+    summary: SeveritySummary;
+    missingContext: string[];
 };
 
 export type ReviewFinding = {
@@ -41,58 +49,14 @@ export type ReviewFinding = {
     recommendation: string;
 };
 
-export type ReviewStructuredOutput = {
-    filePath: string;
-    findings: ReviewFinding[];
-    summary: SeveritySummary;
-    missingContext: string[];
-};
-
-export type FileReviewFindingsMeta = {
-    countFileReviews: number;
-    countFindings: number;
-}
-
-export type FileReviewMeta = {
-    headSha: string | null;
-    loadedContext: { tests: number; sources: number; liquibase: number; fileContent: boolean };
-    warnings: string[];
-};
-
-export type FileReviewResult = {
-    filePath: string;
-    status: ReviewStatus;
+export type MetaReviewResult = {
     outputMarkdown: string;
-    outputStructured: ReviewStructuredOutput | null;
-    severitySummary: SeveritySummary;
     diagnostics?: DiagnosticDataLLM;
-    meta?: FileReviewMeta;
+    meta?:MetaReviewMeta;
 };
 
-export type MetatReviewMeta = {
+export type MetaReviewMeta = {
     loadedContext: {countFileReviews: number, countFindings: number }
     warnings: string[];
 };
 
-export type MetaReviewResult = {
-    outputMarkdown: string;
-    diagnostics?: DiagnosticDataLLM;
-    meta?:MetatReviewMeta;
-};
-
-export type TextRef = {
-    path: string;
-    content: string;
-};
-
-export type ChangedFile = {
-    path: string;
-    diffText?: string;
-    contentAtHead?: string;
-};
-
-export type ContextBundle = {
-    relatedTests: TextRef[];
-    relatedSources: TextRef[];
-    relatedLiquibase: TextRef[];
-};

@@ -1,4 +1,4 @@
-export const SYSTEM_LIQUIBASE_PROMPT = `
+export const LIQUIBASE_CONTEXT = `
 LIQUIBASE CONTEXT:
 if the file ist a changelog then always check the referenced changeset files exist in list of changed files and 
 mention if not because liquibase won't work this wrong definition (find files in section LIQUIBASE-RELATED FILES CHANGED IN THIS PR).

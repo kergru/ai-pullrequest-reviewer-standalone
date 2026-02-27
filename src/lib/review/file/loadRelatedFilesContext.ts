@@ -1,45 +1,48 @@
 import type { SessionState } from "@/lib/session";
-import {ChangedFile, ContextBundle, TextRef} from "@/lib/review/types";
+import type { ChangedFile, ContextBundle, TextRef } from "./types";
+import { vcs } from "@/lib/vcs/client";
+import { clampTextHeadTail } from "@/lib/review/shared";
+import { envBool, envInt } from "@/lib/envUtil";
+
 
 export async function loadContextBundle(
     session: SessionState,
     filePath: string,
     headSha: string | undefined,
-    deps: { vcs: any; clampTextHeadTail: any; envInt: any; envBool: any }
 ): Promise<ContextBundle> {
     const relatedTests: TextRef[] = [];
     const relatedSources: TextRef[] = [];
     let relatedLiquibase: TextRef[] = [];
 
     const testOpts = {
-        enabled: deps.envBool("OPENAI_INCLUDE_JAVA_TESTS", true),
-        maxFiles: deps.envInt("OPENAI_MAX_JAVA_TEST_FILES", 3),
-        maxChars: deps.envInt("OPENAI_MAX_JAVA_TEST_CHARS", 18_000),
+        enabled: envBool("OPENAI_CONTEXT_INCLUDE_TESTS", true),
+        maxFiles: envInt("OPENAI_CONTEXT_MAX_TEST_FILES", 3),
+        maxChars: envInt("OPENAI_CONTEXT_MAX_TEST_CHARS", 18_000),
     };
 
     const sourceOpts = {
-        enabled: deps.envBool("OPENAI_INCLUDE_JAVA_SOURCES", true),
-        maxFiles: deps.envInt("OPENAI_MAX_JAVA_SOURCE_FILES", 3),
-        maxChars: deps.envInt("OPENAI_MAX_JAVA_SOURCE_CHARS", 18_000),
+        enabled: envBool("OPENAI_INCLUDE_JAVA_SOURCES", true),
+        maxFiles: envInt("OPENAI_MAX_JAVA_SOURCE_FILES", 3),
+        maxChars: envInt("OPENAI_MAX_JAVA_SOURCE_CHARS", 18_000),
     };
 
     const liquibaseOpts = {
-        enabled: deps.envBool("OPENAI_INCLUDE_LIQUIBASE", true),
-        maxFiles: deps.envInt("OPENAI_MAX_LIQUIBASE_FILES", 10),
-        maxChars: deps.envInt("OPENAI_MAX_LIQUIBASE_CHARS", 18_000),
-        fetchFallback: deps.envBool("OPENAI_LIQUIBASE_FETCH_FALLBACK", false),
+        enabled: envBool("OPENAI_INCLUDE_LIQUIBASE", true),
+        maxFiles: envInt("OPENAI_MAX_LIQUIBASE_FILES", 10),
+        maxChars: envInt("OPENAI_MAX_LIQUIBASE_CHARS", 18_000),
+        fetchFallback: envBool("OPENAI_LIQUIBASE_FETCH_FALLBACK", false),
     };
 
     // ---- JAVA CONTEXT ----
     if (isJavaSourceFile(filePath) && headSha) {
         relatedTests.push(
-            ...(await findRelatedTestsForSource(session.pr, headSha, filePath, testOpts, deps))
+            ...(await findRelatedTestsForSource(session.pr, headSha, filePath, testOpts))
         );
     }
 
     if (isJavaTestFile(filePath) && headSha) {
         relatedSources.push(
-            ...(await findRelatedSourcesForTest(session.pr, headSha, filePath, sourceOpts, deps))
+            ...(await findRelatedSourcesForTest(session.pr, headSha, filePath, sourceOpts))
         );
     }
 
@@ -62,8 +65,7 @@ export async function loadContextBundle(
                     maxFiles: liquibaseOpts.maxFiles,
                     maxChars: liquibaseOpts.maxChars,
                     enableFetchFallback: true,
-                },
-                deps
+                }
             );
         }
 
@@ -151,8 +153,6 @@ async function fetchAndClamp(
     path: string,
     maxChars: number,
     clampMsg: string,
-    vcs: any,
-    clampTextHeadTail: (t: string, m: number, s: string) => { text: string }
 ): Promise<TextRef> {
     const raw = await vcs.getFileContentAtCommit(pr, path, headSha);
     const clamped = clampTextHeadTail(raw, maxChars, clampMsg);
@@ -164,7 +164,6 @@ export async function findRelatedTestsForSource(
     headSha: string,
     filePath: string,
     opts: { maxFiles: number; maxChars: number; enabled: boolean },
-    deps: { vcs: any; clampTextHeadTail: any }
 ): Promise<TextRef[]> {
     if (!opts.enabled || opts.maxFiles <= 0) return [];
 
@@ -172,7 +171,7 @@ export async function findRelatedTestsForSource(
     const testDir = toTargetPackageDir(filePath, "main", "test");
 
     try {
-        const entries: string[] = await deps.vcs.listFilesInDirAtCommit(pr, headSha, testDir);
+        const entries: string[] = await vcs.listFilesInDirAtCommit(pr, headSha, testDir);
 
         const matches = entries
             .map((e) => ({ entry: e, name: e.slice(e.lastIndexOf("/") + 1) }))
@@ -186,9 +185,7 @@ export async function findRelatedTestsForSource(
                     headSha,
                     entry.includes("/") ? entry : `${testDir}/${entry}`,
                     opts.maxChars,
-                    "... TEST FILE CLAMPED ...",
-                    deps.vcs,
-                    deps.clampTextHeadTail
+                    "... TEST FILE CLAMPED ..."
                 )
             )
         );
@@ -202,7 +199,6 @@ export async function findRelatedSourcesForTest(
     headSha: string,
     filePath: string,
     opts: { maxFiles: number; maxChars: number; enabled: boolean },
-    deps: { vcs: any; clampTextHeadTail: any }
 ): Promise<TextRef[]> {
     if (!opts.enabled || opts.maxFiles <= 0) return [];
 
@@ -211,7 +207,7 @@ export async function findRelatedSourcesForTest(
     const srcDir = toTargetPackageDir(filePath, "test", "main");
 
     try {
-        const entries: string[] = await deps.vcs.listFilesInDirAtCommit(pr, headSha, srcDir);
+        const entries: string[] = await vcs.listFilesInDirAtCommit(pr, headSha, srcDir);
 
         const exact = entries.filter(
             (e) => e.slice(e.lastIndexOf("/") + 1).toLowerCase() === `${srcBase.toLowerCase()}.java`
@@ -227,9 +223,7 @@ export async function findRelatedSourcesForTest(
                     headSha,
                     entry.includes("/") ? entry : `${srcDir}/${entry}`,
                     opts.maxChars,
-                    "... SOURCE FILE CLAMPED ...",
-                    deps.vcs,
-                    deps.clampTextHeadTail
+                    "... SOURCE FILE CLAMPED ..."
                 )
             )
         );
@@ -260,7 +254,6 @@ export async function loadLiquibaseContext(
     headSha: string,
     changedFiles: ChangedFile[],
     opts: { maxFiles: number; maxChars: number; enableFetchFallback: boolean },
-    deps: { vcs: any; clampTextHeadTail: any }
 ): Promise<TextRef[]> {
     const picked = changedFiles.filter((f) => isLiquibaseFile(f.path)).slice(0, opts.maxFiles);
 
@@ -282,9 +275,7 @@ export async function loadLiquibaseContext(
                 headSha,
                 f.path,
                 opts.maxChars,
-                "... LIQUIBASE FILE CLAMPED ...",
-                deps.vcs,
-                deps.clampTextHeadTail
+                "... LIQUIBASE FILE CLAMPED ..."
             );
             out.push(ref);
         } catch {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, deleteSession } from "@/lib/session";
 import { runMetaReview } from "@/lib/review";
-import type {FileReviewResult, ReviewStructuredOutput} from "@/lib/review/types";
+import type { FileReviewResult } from "@/lib/review";
 
 export const runtime = "nodejs";
 
@@ -20,12 +20,8 @@ export async function POST(req: Request) {
     s.inFlight = true;
 
     try {
-        const fileReviewResults: ReviewStructuredOutput[] = Object.values(s.reviews)
-            .filter((r): r is FileReviewResult => r.status === "done" || r.status === "done_with_warnings")
-            .map((r) => ({
-                ...r.outputStructured!,
-                filePath: r.filePath,
-            }));
+        const fileReviewResults: FileReviewResult[] = Object.values(s.reviews)
+            .filter(r => (r.status === "done" || r.status === "done_with_warnings"));
 
         if (!fileReviewResults.length) {
             return NextResponse.json(

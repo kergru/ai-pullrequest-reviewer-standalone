@@ -1,7 +1,9 @@
+import { SYSTEM_REVIEW_PROMPT } from "@/lib/prompts/fileReviewPrompt";
 import type { SessionState } from "@/lib/session";
-import type { FileReviewResult, ReviewStructuredOutput } from "@/lib/review/types";
+import type { FileReviewResult, ReviewStructuredOutput } from "@/lib/review";
 import { prepareFileReviewContext } from "./prepareFileReviewContext";
-import { runFileReviewLLM } from "@/lib/llm";
+import { runReviewLLM } from "@/lib/llm/runReviewLLM";
+import { buildFileReviewUserContentWithBudget } from "@/lib/review/file/buildPromptWithBudget";
 
 type FileReviewStatus = SessionState["files"][number]["reviewStatus"];
 
@@ -13,29 +15,48 @@ function setFileStatus(session: SessionState, filePath: string, status: FileRevi
 export async function runFileReview(session: SessionState, filePath: string): Promise<FileReviewResult> {
     setFileStatus(session, filePath, "running");
 
+    // load context for review
     const ctx = await prepareFileReviewContext(session, filePath);
 
-    const llm = await runFileReviewLLM({
-        model: session.model,
-        systemPrompt: ctx.systemPrompt,
-        userPrompt: ctx.userPrompt,
-        inputLimitTokens: ctx.inputLimitTokens,
-        reservedOutputTokens: ctx.reservedOutputTokens,
-        maxOutputTokens: ctx.maxOutputTokens,
+    // build prompt with budget
+    const { finalUserPrompt, warnings } = buildFileReviewUserContentWithBudget({
+        jira: session.jira,
+        filePath,
+        language: session.language,
+        userPrompt: session.prompt ?? "",
+        context: ctx
     });
 
-    const structured = parseReviewStructuredOutput(llm.outputJson);
+    const result = await runReviewLLM({
+        model: session.model,
+        systemPrompt: SYSTEM_REVIEW_PROMPT,
+        userPrompt: finalUserPrompt
+    })
+
+    console.log("outputJson: \n", result.outputJson);
+    const structured = parseReviewStructuredOutput(result.outputJson);
+    console.log("structured: \n" , structured);
+
+    const meta = {
+        loadedContext: {
+            tests: ctx.relatedTests.length,
+            sources: ctx.relatedSources.length,
+            liquibase: ctx.relatedLiquibase.length,
+            fileContent: Boolean(ctx.fileContent),
+        },
+        warnings,
+    };
+
     const status: FileReviewResult["status"] = structured ? "done" : "failed";
-    const diagnosticLLM = llm.diagnostics;
 
     const review: FileReviewResult = {
         filePath,
         status,
-        outputMarkdown: llm.outputMarkdown,
+        outputMarkdown: result.outputMarkdown,
         outputStructured: structured,
         severitySummary: structured?.summary ?? { blocker: 0, major: 0, minor: 0, nit: 0 },
-        diagnostics: diagnosticLLM,
-        meta: ctx.meta,
+        diagnostics: result.diagnostics,
+        meta: meta,
     };
 
     session.reviews[filePath] = review;
@@ -43,6 +64,7 @@ export async function runFileReview(session: SessionState, filePath: string): Pr
 
     return review;
 }
+
 
 function parseReviewStructuredOutput(text: string | null): ReviewStructuredOutput | null {
     if (!text) return null;
