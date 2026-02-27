@@ -4,7 +4,7 @@ import { createBitbucketClient } from "./providers/bitbucketClient";
 import type { VcsClient, AnyPrNativeRef  } from "./index";
 
 function createClient(): VcsClient<AnyPrNativeRef> {
-    const provider = process.env.VCS_PROVIDER ?? "github";
+    const provider = process.env.NEXT_PUBLIC_VCS_PROVIDER ?? "github";
 
     if (provider === "bitbucket") {
         return createBitbucketClient({
