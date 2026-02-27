@@ -21,3 +21,20 @@ export function optionalEnv(name: string): string | undefined {
     const v = process.env[name];
     return v?.trim() ? v.trim() : undefined;
 }
+
+
+export function extOf(path: string) {
+    const p = normalizePath(path);
+    const i = p.lastIndexOf(".");
+    return i >= 0 ? p.slice(i + 1).toLowerCase() : "";
+}
+
+export function normalizePath(p: string | undefined | null) {
+    if (!p) return "";
+    return String(p)
+        .trim()
+        .replace(/^"+|"+$/g, "") // strip quotes
+        .replace(/^[ab]\//, "")  // strip a/ or b/
+        .replace(/^\/+/, "")
+        .replace(/\\/g, "/");
+}

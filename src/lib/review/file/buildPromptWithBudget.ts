@@ -8,7 +8,7 @@ import {
     estimateTokens, getInputTokenLimit, getOutputTokenLimit,
     normalizeTextForPrompt
 } from "@/lib/review/shared";
-import { envInt } from "@/lib/envUtil";
+import { envInt } from "@/lib/utils/utilFunctions";
 import type { BudgetState } from "@/lib/review/shared";
 import type { FileReviewContext } from "@/lib/review/file/types";
 

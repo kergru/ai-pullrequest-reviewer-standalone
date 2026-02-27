@@ -2,7 +2,7 @@ import type { SessionState } from "@/lib/session";
 import type { ChangedFile, ContextBundle, TextRef } from "./types";
 import { vcs } from "@/lib/vcs/client";
 import { clampTextHeadTail } from "@/lib/review/shared";
-import { envBool, envInt } from "@/lib/envUtil";
+import { envBool, envInt } from "@/lib/utils/utilFunctions";
 
 
 export async function loadContextBundle(

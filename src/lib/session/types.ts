@@ -31,4 +31,7 @@ export type SessionState = {
     repoFileIndex?: string[];
 
     language: string;
+
+    // cached split diff map (filePath -> unified diff for that file)
+    diffMap?: Map<string, string>;
 };

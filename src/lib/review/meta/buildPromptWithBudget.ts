@@ -6,12 +6,14 @@ import {
     getInputTokenLimit,
     getOutputTokenLimit
 } from "@/lib/review/shared";
+import { envInt } from "@/lib/utils/utilFunctions";
 
 export function buildMetaReviewUserPromptWithBudget(input: {
     jira?: any;
     language: string;
     userPrompt: string;
     fileReviewResults: any;
+    compactedDiff?: string;
 }) {
 
     // Token budget calculation
@@ -40,10 +42,18 @@ export function buildMetaReviewUserPromptWithBudget(input: {
 
     appendBlock(parts, state, "USER INSTRUCTIONS", "USER INSTRUCTIONS:", input.userPrompt, {});
 
+    // add the main META block (jira + file review findings)
     appendBlock(parts, state, "META", "", base, {
         hardCapChars: maxInputChars, // use everything available
         marker: `... META REVIEW INPUT TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
         minKeepChars: 1500,
+    });
+
+    // append full diff as its own token-aware block (configurable hard cap)
+    appendBlock(parts, state, "DIFF", "CONTEXT DIFF:", input.compactedDiff ?? "", {
+        hardCapChars: Math.min(maxInputChars, envInt("OPENAI_META_MAX_DIFF_CHARS", 50000)),
+        marker: `... FULL DIFF TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
+        minKeepChars: 500,
     });
 
     const preamble = warnings.length

@@ -1,5 +1,6 @@
-import { envInt } from "@/lib/envUtil";
+import { envInt } from "@/lib/utils/utilFunctions";
 import type { Severity, FileReviewResult, ReviewStructuredOutput, SeveritySummary, ReviewFinding } from "../types";
+import type { FileEntry } from "@/lib/session";
 
 type CompactFileReviewResult = {
     filePath: string;
@@ -15,7 +16,46 @@ type ReducedFinding = {
     problem: string;
 }
 
-export function compactFileReviewResults(fileReviewResults: FileReviewResult[]): CompactFileReviewResult[] {
+export async function prepareMetaReviewContext(params: {
+    fileReviewResults: FileReviewResult[];
+    changedFiles: FileEntry[];
+}): Promise<{ compactedFileReviews: CompactFileReviewResult[]; compactedDiff?: string }>{
+
+    const compactedFileReviews = compactFileReviewResults(params.fileReviewResults);
+
+    // load a compacted diff ony from source files to use is as context for meta review.
+    const compactedDiff = compactDiff(params.changedFiles);
+
+    return { compactedFileReviews,compactedDiff };
+}
+
+// create compacted diff, use diff only from source files
+function compactDiff(changedFiles: FileEntry[]): string {
+    if (!Array.isArray(changedFiles) || changedFiles.length === 0) return "";
+
+    const parts: string[] = [];
+
+    for (const f of changedFiles) {
+        if (!f || typeof f.path !== "string") continue;
+        const path = String(f.path).trim();
+        // only include repository source files (start with src/)
+        if (path.startsWith("src/test")) continue;
+
+        const diffText = String(f.diffText ?? "").trim();
+        // include a small header with the file path and the diff text
+        const header = `FILE: ${path}`;
+        if (diffText) {
+            parts.push(`${header}\n${diffText}`);
+        } else {
+            // keep an explicit empty placeholder so callers know file was considered
+            parts.push(`${header}\n`);
+        }
+    }
+
+    return parts.length ? parts.join("\n\n") : "";
+}
+
+function compactFileReviewResults(fileReviewResults: FileReviewResult[]): CompactFileReviewResult[] {
     const MAX_PER_FILE = envInt("OPENAI_META_MAX_FINDINGS_PER_FILE", 6);
     const MAX_FILES = envInt("OPENAI_META_MAX_FILES", 50);
 
@@ -50,21 +90,21 @@ export function compactFileReviewResults(fileReviewResults: FileReviewResult[]):
 
             const severitySummary: SeveritySummary = structured?.summary && typeof structured.summary === "object"
                 ? {
-                      blocker: Number((structured.summary as any).blocker ?? 0) || 0,
-                      major: Number((structured.summary as any).major ?? 0) || 0,
-                      minor: Number((structured.summary as any).minor ?? 0) || 0,
-                      nit: Number((structured.summary as any).nit ?? 0) || 0,
-                  }
+                    blocker: Number((structured.summary as any).blocker ?? 0) || 0,
+                    major: Number((structured.summary as any).major ?? 0) || 0,
+                    minor: Number((structured.summary as any).minor ?? 0) || 0,
+                    nit: Number((structured.summary as any).nit ?? 0) || 0,
+                }
                 : topReduced.reduce(
-                      (acc: SeveritySummary, f) => {
-                          const sev = f.severity;
-                          if (sev === "blocker" || sev === "major" || sev === "minor" || sev === "nit") {
-                              acc[sev] = (acc[sev] ?? 0) + 1;
-                          }
-                          return acc;
-                      },
-                      { blocker: 0, major: 0, minor: 0, nit: 0 }
-                  );
+                    (acc: SeveritySummary, f) => {
+                        const sev = f.severity;
+                        if (sev === "blocker" || sev === "major" || sev === "minor" || sev === "nit") {
+                            acc[sev] = (acc[sev] ?? 0) + 1;
+                        }
+                        return acc;
+                    },
+                    { blocker: 0, major: 0, minor: 0, nit: 0 }
+                );
 
             return {
                 filePath,
@@ -73,4 +113,11 @@ export function compactFileReviewResults(fileReviewResults: FileReviewResult[]):
             } as CompactFileReviewResult;
         })
         .filter((c) => Array.isArray(c.topFindings) && c.topFindings.length > 0);
+}
+
+// ---------------------- new helper ----------------------
+function isTestPath(path?: string) {
+    if (!path) return false;
+    const p = path.toLowerCase();
+    return p.includes("/test/") || p.includes("test/") || /test.*\.java$/i.test(p) || /\btest\b/i.test(p);
 }

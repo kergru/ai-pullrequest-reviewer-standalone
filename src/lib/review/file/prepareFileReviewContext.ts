@@ -3,19 +3,16 @@ import type { SessionState } from "@/lib/session";
 import { vcs } from "@/lib/vcs/client";
 import { clampTextHeadTail, shouldFetchFileContent } from "@/lib/review/shared";
 import { loadContextBundle } from "@/lib/review/file/loadRelatedFilesContext";
-import { findDiffForPath, splitUnifiedDiffByFile } from "@/lib/diff-util";
-import {envInt} from "@/lib/envUtil";
+import { envInt } from "@/lib/utils/utilFunctions";
+import { getDiffForFile } from "@/lib/diff/getDiff";
 
 export async function prepareFileReviewContext(
     session: SessionState,
     filePath: string
 ): Promise<FileReviewContext> {
     const headSha = session.pr.headSha;
-    const fullDiff = await vcs.getDiff(session.pr);
-    const byFile = splitUnifiedDiffByFile(fullDiff);
-    cacheDiffsIntoSession(session, byFile);
 
-    const diffText = findDiffForPath(byFile, filePath) ?? "";
+    const diffText = await getDiffForFile(session, filePath);
     if (!diffText) {
         throw new Error(`No diff found for filePath=${filePath}. Diff splitter couldn't match.`);
     }

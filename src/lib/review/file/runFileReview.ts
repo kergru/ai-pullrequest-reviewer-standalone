@@ -33,10 +33,7 @@ export async function runFileReview(session: SessionState, filePath: string): Pr
         userPrompt: finalUserPrompt
     })
 
-    console.log("outputJson: \n", result.outputJson);
     const structured = parseReviewStructuredOutput(result.outputJson);
-    console.log("structured: \n" , structured);
-
     const meta = {
         loadedContext: {
             tests: ctx.relatedTests.length,

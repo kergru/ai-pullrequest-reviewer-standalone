@@ -1,6 +1,3 @@
-// typescript
-// Datei: `src/components/DiffViewer.tsx`
-import React from "react";
 
 export function DiffViewer({ diff }: { diff: string }) {
     const lines = diff.split("\n");

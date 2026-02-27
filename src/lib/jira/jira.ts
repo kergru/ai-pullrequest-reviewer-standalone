@@ -1,4 +1,4 @@
-import { mustEnv, optionalEnv } from "@/lib/envUtil";
+import { mustEnv, optionalEnv } from "@/lib/utils/utilFunctions";
 import type { JiraIssue } from "@/lib/jira/types";
 
 /* ---------------- ADF → TEXT ---------------- */

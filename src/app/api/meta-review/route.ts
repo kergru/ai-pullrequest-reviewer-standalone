@@ -36,6 +36,7 @@ export async function POST(req: Request) {
             userPrompt: s.prompt,
             jira: s.jira,
             fileReviewResults,
+            changedFiles: s.files,
         });
 
         if (body.deleteAfter) deleteSession(s.id);

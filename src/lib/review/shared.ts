@@ -1,5 +1,4 @@
-import { envBool, envInt } from "@/lib/envUtil";
-import { extOf } from "@/lib/diff-util";
+import { envBool, envInt, extOf } from "@/lib/utils/utilFunctions";
 
 export const CHARS_PER_TOKEN = 4;
 
