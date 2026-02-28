@@ -19,13 +19,14 @@ export type DiagnosticDataLLM = {
     model: string;
     mode: Mode;
     durationMs: number;
+    systemPrompt: string;
+    userPrompt: string;
 
     requestChars: { system: number; user: number; total: number };
     estimatedInputTokens: { system: number; user: number; total: number };
 
     inputLimitTokens: number;
-    reservedOutputTokens: number;
-    maxOutputTokens: number;
+    outputLimitTokens: number;
 
     usage?: ApiUsage;
     responseId?: string;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, deleteSession } from "@/lib/session";
 import { runMetaReview } from "@/lib/review";
-import type {FileReviewResult, ReviewStructuredOutput} from "@/lib/review/types";
+import type { FileReviewResult } from "@/lib/review";
 
 export const runtime = "nodejs";
 
@@ -20,10 +20,8 @@ export async function POST(req: Request) {
     s.inFlight = true;
 
     try {
-        const fileReviewResults: ReviewStructuredOutput[] = Object.values(s.reviews)
-            .filter((r): r is FileReviewResult => r.status === "done" || r.status === "done_with_warnings")
-            .filter(r => r.outputStructured !== null)
-            .map((r) => r.outputStructured!);
+        const fileReviewResults: FileReviewResult[] = Object.values(s.reviews)
+            .filter(r => (r.status === "done" || r.status === "done_with_warnings"));
 
         if (!fileReviewResults.length) {
             return NextResponse.json(
@@ -34,8 +32,11 @@ export async function POST(req: Request) {
 
         const mr = await runMetaReview({
             model: s.model,
+            language: s.language,
+            userPrompt: s.prompt,
             jira: s.jira,
             fileReviewResults,
+            changedFiles: s.files,
         });
 
         if (body.deleteAfter) deleteSession(s.id);

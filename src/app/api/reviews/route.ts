@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
-import { runFileReview } from "@/lib/review/runFileReview";
-import type { FileReviewResult } from "@/lib/review/types";
-import type { SeveritySummary } from "@/lib/types";
+import { runFileReview } from "@/lib/review/file/runFileReview";
+import type { SeveritySummary, FileReviewResult } from "@/lib/review";
 
 export const runtime = "nodejs";
 
@@ -45,7 +44,6 @@ export async function POST(req: Request) {
             severitySummary: emptySummary(),
             diagnostics: undefined,
             meta: {
-                headSha: session.pr.headSha ?? null,
                 loadedContext: { tests: 0, sources: 0, liquibase: 0, fileContent: false },
                 warnings,
             },

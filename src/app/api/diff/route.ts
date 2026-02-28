@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { vcs } from "@/lib/vcs/client";
-import { splitUnifiedDiffByFile, findDiffForPath, normPath } from "@/lib/diff-util";
+import { getDiffForFile } from "@/lib/diff/getDiff";
 
 export const runtime = "nodejs";
 
@@ -16,13 +15,10 @@ export async function GET(req: Request) {
     const s = getSession(sessionId);
     if (!s) return NextResponse.json({ error: "Session not found" }, { status: 404 });
 
-    const fullDiff = await vcs.getDiff(s.pr);
-    const byFile = splitUnifiedDiffByFile(fullDiff);
-    const fileDiff = findDiffForPath(byFile, filePath);
-
+    const fileDiff = await getDiffForFile(s, filePath);
     if (!fileDiff) {
         return NextResponse.json(
-            { error: "No diff for filePath (splitter could not match)", filePath, normalized: normPath(filePath) },
+            { error: "No diff for filePath (splitter could not match)", filePath, normalized: filePath },
             { status: 404 }
         );
     }

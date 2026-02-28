@@ -35,6 +35,7 @@ export function createBitbucketClient(cfg: Extract<VcsConfig, { provider: "bitbu
             return {
                 url: prUrl,
                 title: pr.title,
+                displayTitle: `${pr.title} (${projectKey}/${repoSlug} #${prId})`,
                 baseSha: pr.toCommit,
                 headSha: pr.fromCommit,
                 repo: { host, ownerOrProject: projectKey, nameOrSlug: repoSlug },

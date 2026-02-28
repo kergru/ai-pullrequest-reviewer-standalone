@@ -1,25 +1,14 @@
+import type { ReviewStatus, ReviewStructuredOutput, SeveritySummary } from "@/lib/review";
+
 export type CreateSessionRequest = {
     pullRequestUrl: string;
     jiraKey?: string;
     prompt: string;
     model: string;
+    language: string;
     ttlMinutes?: number;
     autoReviewFirstFile?: boolean;
 };
-
-export type ReviewStatus = "pending" | "running" | "done" | "done_with_warnings" | "failed" | "ignored";
-
-export type Severity = "blocker" | "major" | "minor" | "nit";
-
-export type SeveritySummary = { blocker: number; major: number; minor: number; nit: number };
-
-export type Category =
-    | "Correctness"
-    | "Security"
-    | "Performance"
-    | "Maintainability"
-    | "Testability"
-    | "Style";
 
 export type ReviewDiagnosticsDto = {
     warnings: string[];
@@ -41,7 +30,7 @@ export type ReviewDto = {
     filePath: string;
     status: ReviewStatus;
     outputMarkdown: string;
-    outputStructured: any;
+    outputStructured: ReviewStructuredOutput;
     severitySummary: SeveritySummary;
     diagnostics: ReviewDiagnosticsDto;
     fileContentMeta?: { attempted: boolean; fetched: boolean; reason: string; clamped?: boolean };
@@ -51,7 +40,7 @@ export type ReviewDto = {
 
 export type SessionDto = {
     sessionId: string;
-    pr: { url: string; projectKey: string; repoSlug: string; prId: number; title: string; toCommit?: string; fromCommit?: string };
+    pr: { url: string; projectKey: string; repoSlug: string; prId: number; title: string; displayTitle: string, toCommit?: string; fromCommit?: string };
     jira: null | { key: string; summary: string; description: string; acceptanceCriteria: string };
     prompt: string;
     model: string;

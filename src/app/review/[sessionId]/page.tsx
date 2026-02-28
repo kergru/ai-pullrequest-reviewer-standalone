@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getDiff, getSession, startMetaReview, startReview } from "@/lib/reviewApiClient";
 import { FileTree } from "@/components/FileTree";
 import { DiffViewer } from "@/components/DiffViewer";
@@ -27,16 +27,6 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
 
     const files = session?.files ?? [];
     const selectedReview = session?.reviews?.[selected] ?? null;
-
-    const selectedIndex = useMemo(
-        () => files.findIndex((f: any) => f.path === selected),
-        [files, selected]
-    );
-
-    const nextFile = useMemo(() => {
-        if (selectedIndex < 0) return null;
-        return files[selectedIndex + 1]?.path ?? null;
-    }, [files, selectedIndex]);
 
     const reviewedCount =
         session?.files?.filter(
@@ -259,7 +249,7 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
             >
                 <strong>PR AI Review</strong>
                 <span style={{ color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {session.pr?.title} ({session.pr?.projectKey}/{session.pr?.repoSlug} #{session.pr?.prId})
+                    {session.pr?.displayTitle}
                 </span>
                 <span style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
                     Model: <b>{session.model}</b>

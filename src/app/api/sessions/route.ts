@@ -10,8 +10,9 @@ export const runtime = "nodejs";
 const CreateSession = z.object({
     pullRequestUrl: z.string().min(10),
     jiraKey: z.string().optional(),
-    prompt: z.string().min(1),
+    prompt: z.string().optional(),
     model: z.string().min(1),
+    language: z.string().min(1).optional().default("EN"),
     ttlMinutes: z.number().int().min(5).max(240).optional(),
     autoReviewFirstFile: z.boolean().optional().default(true),
 });
@@ -57,15 +58,15 @@ export async function POST(req: Request) {
         const jira = body.jiraKey ? await getJiraIssue(body.jiraKey) : undefined;
 
         let repoFileIndex: string[] | undefined = undefined;
-        if (pr.baseSha) {
-            try {
-                repoFileIndex = await vcs.listFilesAtCommit(pr, pr.baseSha);
-            } catch (e: any) {
-                // eslint-disable-next-line no-console
-                console.warn(`⚠️ Could not build repo file index at toCommit=${pr.baseSha}: ${e?.message ?? String(e)}`);
-                repoFileIndex = undefined;
-            }
-        }
+        // if (pr.headSha) {
+        //     try {
+        //         repoFileIndex = await vcs.listFilesAtCommit(pr, pr.headSha);
+        //     } catch (e: any) {
+        //         // eslint-disable-next-line no-console
+        //         console.warn(`⚠️ Could not build repo file index at toCommit=${pr.headSha}: ${e?.message ?? String(e)}`);
+        //         repoFileIndex = undefined;
+        //     }
+        // }
 
         putSession({
             id: sessionId,
@@ -75,10 +76,11 @@ export async function POST(req: Request) {
             jira,
             prompt: body.prompt,
             model: body.model,
+            language: body.language,
             files,
             reviews: {},
             inFlight: false,
-            repoFileIndex,
+            repoFileIndex, // repoFileIndex, currently not used
         } as any);
 
         return NextResponse.json({ sessionId, status: "ready", pr, files, hasRepoFileIndex: Boolean(repoFileIndex) });

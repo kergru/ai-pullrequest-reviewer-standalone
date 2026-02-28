@@ -1,22 +1,5 @@
-
-export type JiraIssueSnapshot = {
-    key: string;
-    url: string;
-    summary: string;
-    description: string;
-    acceptanceCriteria: string;
-};
-
-function mustEnv(name: string): string {
-    const v = process.env[name];
-    if (!v) throw new Error(`Missing env var: ${name}`);
-    return v;
-}
-
-function optionalEnv(name: string): string | undefined {
-    const v = process.env[name];
-    return v?.trim() ? v.trim() : undefined;
-}
+import { mustEnv, optionalEnv } from "@/lib/utils/utilFunctions";
+import type { JiraIssue } from "@/lib/jira/types";
 
 /* ---------------- ADF → TEXT ---------------- */
 
@@ -77,7 +60,7 @@ function authHeader() {
 
 /* ---------------- API ---------------- */
 
-export async function getJiraIssue(key: string): Promise<JiraIssueSnapshot> {
+export async function getJiraIssue(key: string): Promise<JiraIssue> {
     const baseUrl = mustEnv("JIRA_BASE_URL").replace(/\/$/, "");
 
     const url = `${baseUrl}/rest/api/2/issue/${encodeURIComponent(

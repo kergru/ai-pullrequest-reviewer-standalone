@@ -1,6 +1,5 @@
 import type { VcsPrRef } from "@/lib/vcs";
-import type { ReviewStatus } from "@/lib/types";
-import type { FileReviewResult } from "@/lib/review/types";
+import type { ReviewStatus, FileReviewResult } from "@/lib/review";
 
 export type FileEntry = {
     path: string;
@@ -30,4 +29,9 @@ export type SessionState = {
 
     inFlight: boolean;
     repoFileIndex?: string[];
+
+    language: string;
+
+    // cached split diff map (filePath -> unified diff for that file)
+    diffMap?: Map<string, string>;
 };
