@@ -1,4 +1,4 @@
-import { META_REVIEW_PROMPT } from "@/lib/prompts/metaReviewPrompt";
+import { SYSTEM_META_REVIEW_PROMPT } from "@/lib/prompts/metaReviewPrompt";
 import {
     appendBlock, BudgetState,
     CHARS_PER_TOKEN,
@@ -18,7 +18,7 @@ export function buildMetaReviewUserPromptWithBudget(input: {
 
     // Token budget calculation
     const inputLimitTokens = getInputTokenLimit();
-    const systemTokens = estimateTokens(META_REVIEW_PROMPT);
+    const systemTokens = estimateTokens(SYSTEM_META_REVIEW_PROMPT);
     const maxOutputTokens = getOutputTokenLimit();
 
     const maxInputChars = Math.max(
@@ -31,7 +31,7 @@ export function buildMetaReviewUserPromptWithBudget(input: {
     const state: BudgetState = { remainingChars: maxInputChars, warnings };
 
     const base = [
-        "HUMAN READALE MARKDOWN LANGUAGE: " + input.language,
+        "HUMAN READABLE MARKDOWN LANGUAGE: " + input.language,
         "",
         "CONTEXT JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),

@@ -23,7 +23,7 @@ export async function prepareMetaReviewContext(params: {
 
     const compactedFileReviews = compactFileReviewResults(params.fileReviewResults);
 
-    // load a compacted diff ony from source files to use is as context for meta review.
+    // load a compacted diff only from source files to use is as context for meta review.
     const compactedDiff = compactDiff(params.changedFiles);
 
     return { compactedFileReviews,compactedDiff };
@@ -113,11 +113,4 @@ function compactFileReviewResults(fileReviewResults: FileReviewResult[]): Compac
             } as CompactFileReviewResult;
         })
         .filter((c) => Array.isArray(c.topFindings) && c.topFindings.length > 0);
-}
-
-// ---------------------- new helper ----------------------
-function isTestPath(path?: string) {
-    if (!path) return false;
-    const p = path.toLowerCase();
-    return p.includes("/test/") || p.includes("test/") || /test.*\.java$/i.test(p) || /\btest\b/i.test(p);
 }

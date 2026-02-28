@@ -1,4 +1,4 @@
-import { META_REVIEW_PROMPT } from "@/lib/prompts/metaReviewPrompt";
+import { SYSTEM_META_REVIEW_PROMPT } from "@/lib/prompts/metaReviewPrompt";
 import { buildMetaReviewUserPromptWithBudget } from "@/lib/review/meta/buildPromptWithBudget";
 import { runReviewLLM } from "@/lib/llm/runReviewLLM";
 import { prepareMetaReviewContext } from "@/lib/review/meta/prepareMetaReviewContext";
@@ -15,7 +15,7 @@ export async function runMetaReview(input: {
     changedFiles: FileEntry[];
 }): Promise<MetaReviewResult> {
 
-    const systemPrompt = META_REVIEW_PROMPT;
+    const systemPrompt = SYSTEM_META_REVIEW_PROMPT;
 
     // prepare context (compaction + optional full diff)
     const { compactedFileReviews, compactedDiff } = await prepareMetaReviewContext({

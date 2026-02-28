@@ -1,6 +1,6 @@
-import { SOURCE_FILES_CONTEXT } from "@/lib/prompts/sourcefilePrompt";
-import { TESTFILE_CONTEXT } from "@/lib/prompts/testfilePrompt";
-import { LIQUIBASE_CONTEXT } from "@/lib/prompts/liquibasePrompt";
+import { SYSTEM_SOURCE_FILES_CONTEXT } from "@/lib/prompts/sourcefilePrompt";
+import { SYSTEM_TESTFILE_CONTEXT } from "@/lib/prompts/testfilePrompt";
+import { SYSTEM_LIQUIBASE_CONTEXT } from "@/lib/prompts/liquibasePrompt";
 import { SYSTEM_REVIEW_PROMPT } from "@/lib/prompts/fileReviewPrompt";
 import {
     appendBlock,
@@ -20,12 +20,12 @@ export function buildFileReviewUserContentWithBudget(input: {
     context: FileReviewContext
 }) {
     const inputLimitTokens = getInputTokenLimit();
-    const outputLimitTokes = getOutputTokenLimit();
+    const outputLimitTokens  = getOutputTokenLimit();
     const systemTokens = estimateTokens(SYSTEM_REVIEW_PROMPT);
 
     const maxInputChars = Math.max(
         2_000,
-        (inputLimitTokens - outputLimitTokes- systemTokens) * CHARS_PER_TOKEN
+        (inputLimitTokens - outputLimitTokens - systemTokens) * CHARS_PER_TOKEN
     );
 
     const context = input.context;
@@ -33,7 +33,7 @@ export function buildFileReviewUserContentWithBudget(input: {
     const parts: string[] = [];
 
     const baseRaw = [
-        "HUMAN READALE MARKDOWN LANGUAGE: " + input.language,
+        "HUMAN READABLE MARKDOWN LANGUAGE: " + input.language,
         "",
         "JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),
@@ -83,7 +83,7 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             tests.map(t => ({ path: t.path, content: normalizeTextForPrompt(t.content) }))
         );
-        appendBlock(parts, state, "RELATED_TESTS", TESTFILE_CONTEXT, rendered, {
+        appendBlock(parts, state, "RELATED_TESTS", SYSTEM_TESTFILE_CONTEXT, rendered, {
             hardCapChars: capTests,
             marker: `... RELATED TESTS TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -96,7 +96,7 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             sources.map(s => ({ path: s.path, content: normalizeTextForPrompt(s.content) }))
         );
-        appendBlock(parts, state, "RELATED_SOURCES", SOURCE_FILES_CONTEXT, rendered, {
+        appendBlock(parts, state, "RELATED_SOURCES", SYSTEM_SOURCE_FILES_CONTEXT, rendered, {
             hardCapChars: capSources,
             marker: `... RELATED SOURCES TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -109,7 +109,7 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             lb.map(f => ({ path: f.path, content: normalizeTextForPrompt(f.content) }))
         );
-        appendBlock(parts, state, "LIQUIBASE CONTEXT:", LIQUIBASE_CONTEXT, rendered, {
+        appendBlock(parts, state, "LIQUIBASE CONTEXT:", SYSTEM_LIQUIBASE_CONTEXT, rendered, {
             hardCapChars: capLiquibase,
             marker: `... LIQUIBASE CONTEXT TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,

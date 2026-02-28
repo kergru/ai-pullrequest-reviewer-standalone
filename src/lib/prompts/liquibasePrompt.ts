@@ -1,8 +1,17 @@
-export const LIQUIBASE_CONTEXT = `
-LIQUIBASE CONTEXT:
-if the file ist a changelog then always check the referenced changeset files exist in list of changed files and 
-mention if not because liquibase won't work this wrong definition (find files in section LIQUIBASE-RELATED FILES CHANGED IN THIS PR).
+export const SYSTEM_LIQUIBASE_CONTEXT = `
+Detect file type and apply rules.
 
-if file is a changeset file then validate the SQL or Liquibase DDL
-validate table, column definitions, data types, index, constraints, and syntax
-`.trim();
+CHANGELOG:
+- Extract referenced changeset files.
+- Check they exist in section: "LIQUIBASE CONTEXT"
+- If missing → report and state Liquibase will fail.
+
+CHANGESET:
+Validate SQL/Liquibase DDL:
+- tables, columns, data types
+- indexes
+- constraints (PK, FK, UNIQUE, NOT NULL)
+- syntax
+Flag invalid/inconsistent defs, risky/unsupported types,
+missing required constraints, SQL errors.
+`;

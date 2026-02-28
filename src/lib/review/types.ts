@@ -52,11 +52,10 @@ export type ReviewFinding = {
 export type MetaReviewResult = {
     outputMarkdown: string;
     diagnostics?: DiagnosticDataLLM;
-    meta?:MetaReviewMeta;
+    meta?: MetaReviewMeta;
 };
 
 export type MetaReviewMeta = {
     loadedContext: {countFileReviews: number, countFindings: number }
     warnings: string[];
 };
-

@@ -4,7 +4,6 @@ import { vcs } from "@/lib/vcs/client";
 import { clampTextHeadTail } from "@/lib/review/shared";
 import { envBool, envInt } from "@/lib/utils/utilFunctions";
 
-
 export async function loadContextBundle(
     session: SessionState,
     filePath: string,
@@ -21,16 +20,16 @@ export async function loadContextBundle(
     };
 
     const sourceOpts = {
-        enabled: envBool("OPENAI_INCLUDE_JAVA_SOURCES", true),
-        maxFiles: envInt("OPENAI_MAX_JAVA_SOURCE_FILES", 3),
-        maxChars: envInt("OPENAI_MAX_JAVA_SOURCE_CHARS", 18_000),
+        enabled: envBool("OPENAI_CONTEXT_INCLUDE_JAVA_SOURCES", true),
+        maxFiles: envInt("OPENAI_CONTEXT_MAX_JAVA_SOURCE_FILES", 3),
+        maxChars: envInt("OPENAI_CONTEXT_MAX_JAVA_SOURCE_CHARS", 18_000),
     };
 
     const liquibaseOpts = {
-        enabled: envBool("OPENAI_INCLUDE_LIQUIBASE", true),
-        maxFiles: envInt("OPENAI_MAX_LIQUIBASE_FILES", 10),
-        maxChars: envInt("OPENAI_MAX_LIQUIBASE_CHARS", 18_000),
-        fetchFallback: envBool("OPENAI_LIQUIBASE_FETCH_FALLBACK", false),
+        enabled: envBool("OPENAI_CONTEXT_INCLUDE_LIQUIBASE", true),
+        maxFiles: envInt("OPENAI_CONTEXT_MAX_LIQUIBASE_FILES", 10),
+        maxChars: envInt("OPENAI_CONTEXT_MAX_LIQUIBASE_CHARS", 18_000),
+        fetchFallback: envBool("OPENAI_CONTEXT_LIQUIBASE_FETCH_FALLBACK", false),
     };
 
     // ---- JAVA CONTEXT ----
