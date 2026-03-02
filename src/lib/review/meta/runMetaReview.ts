@@ -3,7 +3,6 @@ import { buildMetaReviewUserPromptWithBudget } from "@/lib/review/meta/buildProm
 import { runReviewLLM } from "@/lib/llm/runReviewLLM";
 import { prepareMetaReviewContext } from "@/lib/review/meta/prepareMetaReviewContext";
 import type { FileReviewResult, MetaReviewResult } from "@/lib/review/types";
-import type { VcsPrRef } from "@/lib/vcs";
 import {FileEntry} from "@/lib/session";
 
 export async function runMetaReview(input: {
