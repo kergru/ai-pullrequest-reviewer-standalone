@@ -315,8 +315,16 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
                 }}
             >
                 <strong>PR AI Review</strong>
-                <span style={{ color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {session.pr?.displayTitle}
+                <span style={{
+                    color: "#666",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    display: "inline-block",
+                }}>
+                    {session.pr?.displayTitle?.length > 100
+                        ? session.pr.displayTitle.slice(0, 95) + "..."
+                        : session.pr?.displayTitle}
                 </span>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 12, color: "#666" }}>Model</span>
@@ -324,7 +332,7 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
                         value={session.model}
                         onChange={(e) => handleModelChange(e.target.value)}
                         disabled={isSessionSettingsUpdating}
-                        style={{ padding: "6px 8px", fontSize: 12 }}
+                        style={{ padding: "6px 1px", fontSize: 12 }}
                     >
                         {modelOptions.map((modelOption) => (
                             <option key={modelOption.id} value={modelOption.id}>
@@ -338,7 +346,7 @@ export default function ReviewPage({ params }: { params: { sessionId: string } }
                         value={session.language ?? "EN"}
                         onChange={(e) => handleLanguageChange(e.target.value as "EN" | "DE" | "RU")}
                         disabled={isSessionSettingsUpdating}
-                        style={{ padding: "6px 8px", fontSize: 12 }}
+                        style={{ padding: "6px 1px", fontSize: 12 }}
                     >
                         <option value="EN">EN</option>
                         <option value="DE">DE</option>

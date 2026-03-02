@@ -119,13 +119,14 @@ function normalizeKey(path: string) {
     return key;
 }
 
-function getFromMap(diffMap: Map<string,string> | undefined, lookupKey: string) {
+function getFromMap(diffMap: Map<string, string> | undefined, lookupKey: string) {
     if (diffMap && diffMap instanceof Map) {
         let d = diffMap.get(lookupKey);
         if (d) return d;
-        d = diffMap.get(lookupKey.replace("src/main/java/", ""));
+        // Entferne beliebige Präfixe vor src/main/java/ oder src/test/java/
+        d = diffMap.get(lookupKey.replace(/.*src\/main\/java\//, ""));
         if (d) return d;
-        d = diffMap.get(lookupKey.replace("src/test/java/", ""));
+        d = diffMap.get(lookupKey.replace(/.*src\/test\/java\//, ""));
         if (d) return d;
     }
     return null;

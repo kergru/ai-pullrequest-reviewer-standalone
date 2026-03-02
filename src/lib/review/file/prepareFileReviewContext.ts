@@ -1,7 +1,7 @@
 import type { FileReviewContext } from "./types";
 import type { SessionState } from "@/lib/session";
 import { vcs } from "@/lib/vcs/client";
-import { clampTextHeadTail, shouldFetchFileContent } from "@/lib/review/shared";
+import { clampTextHeadTail, shouldAppendFileContent } from "@/lib/review/shared";
 import { loadContextBundle } from "@/lib/review/file/loadRelatedFilesContext";
 import { envInt } from "@/lib/utils/utilFunctions";
 import { getDiffForFile } from "@/lib/diff/getDiff";
@@ -19,7 +19,7 @@ export async function prepareFileReviewContext(
 
     // -------- FILE CONTENT (optional) --------
     let fileContent = "";
-    const decision = shouldFetchFileContent(filePath, diffText);
+    const decision = shouldAppendFileContent(filePath, diffText);
 
     if (decision.fetch && headSha) {
         try {
@@ -36,7 +36,7 @@ export async function prepareFileReviewContext(
     }
 
     // context files
-    const bundle = await loadContextBundle(session, filePath, headSha);
+    const bundle = await loadContextBundle(session, filePath, fileContent, headSha);
 
     return {
         diffText,

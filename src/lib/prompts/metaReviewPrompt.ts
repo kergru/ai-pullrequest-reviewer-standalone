@@ -53,7 +53,7 @@ CONSTRAINTS
 - Do not restate file reviews; aggregate
 - High signal, concise
 
-OUTPUT (Markdown)
+OUTPUT (Markdown, user language EN/DE/RU)
 
 Merge readiness: READY | REQUEST_CHANGES
 

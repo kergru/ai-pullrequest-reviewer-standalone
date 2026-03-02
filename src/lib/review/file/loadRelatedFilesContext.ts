@@ -3,10 +3,12 @@ import type { ChangedFile, ContextBundle, TextRef } from "./types";
 import { vcs } from "@/lib/vcs/client";
 import { clampTextHeadTail } from "@/lib/review/shared";
 import { envBool, envInt } from "@/lib/utils/utilFunctions";
+import {VcsPrRef} from "@/lib/vcs";
 
 export async function loadContextBundle(
     session: SessionState,
     filePath: string,
+    fileContent: string,
     headSha: string | undefined,
 ): Promise<ContextBundle> {
     const relatedTests: TextRef[] = [];
@@ -36,6 +38,10 @@ export async function loadContextBundle(
     if (isJavaSourceFile(filePath) && headSha) {
         relatedTests.push(
             ...(await findRelatedTestsForSource(session.pr, headSha, filePath, testOpts))
+        );
+        // try to lookup some relevant sources as well
+        relatedSources.push(
+            ...(await findRelatedSourcesFromImport(session.pr, headSha, filePath, fileContent, sourceOpts))
         );
     }
 
@@ -147,7 +153,7 @@ function toTargetPackageDir(filePath: string, source: "main" | "test", target: "
 }
 
 async function fetchAndClamp(
-    pr: any,
+    pr: VcsPrRef,
     headSha: string,
     path: string,
     maxChars: number,
@@ -158,8 +164,8 @@ async function fetchAndClamp(
     return { path, content: clamped.text };
 }
 
-export async function findRelatedTestsForSource(
-    pr: any,
+async function findRelatedTestsForSource(
+    pr: VcsPrRef,
     headSha: string,
     filePath: string,
     opts: { maxFiles: number; maxChars: number; enabled: boolean },
@@ -193,8 +199,8 @@ export async function findRelatedTestsForSource(
     }
 }
 
-export async function findRelatedSourcesForTest(
-    pr: any,
+async function findRelatedSourcesForTest(
+    pr: VcsPrRef,
     headSha: string,
     filePath: string,
     opts: { maxFiles: number; maxChars: number; enabled: boolean },
@@ -231,11 +237,68 @@ export async function findRelatedSourcesForTest(
     }
 }
 
+// parse imports from the java file content and try to fetch some of them as context, prioritizing those from the same package
+async function findRelatedSourcesFromImport(pr: VcsPrRef, headSha: string, filePath: string, fileContent: string, sourceOpts: {
+    enabled: boolean;
+    maxFiles: number;
+    maxChars: number
+}) {
+    if (!sourceOpts.enabled || sourceOpts.maxFiles <= 0) return [];
+
+    //eventually load file content here if not already loaded
+    let fileContentToUse = fileContent;
+    if(!fileContentToUse) {
+        try {
+            fileContentToUse = await vcs.getFileContentAtCommit(pr, filePath, headSha);
+        } catch (e: any) {
+            console.warn(`⚠️ Could not fetch file content for ${filePath}: ${e?.message ?? String(e)}`);
+        }
+    }
+    const importLines = fileContentToUse
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith("import ") && l.endsWith(";"));
+    const imports = importLines.map((l) => {
+        const imp = l.slice(7, -1).trim(); // remove "import " and ";"
+        return imp;
+    });
+
+    // filter Service or Client classes
+    const filtered = imports.filter((imp) => {
+        const name = imp.slice(imp.lastIndexOf(".") + 1);
+        // Regex: endet mit einem Kleinbuchstaben gefolgt von Service oder Client
+        return /[a-z]Service$/.test(name) || /[a-z]Client$/.test(name);
+    });
+
+    const chosenImports = filtered
+        .slice(0, sourceOpts.maxFiles)
+        .map((imp) => imp.replaceAll(".", "/") + ".java");
+
+    const refs: TextRef[] = [];
+
+    for (const impPath of chosenImports) {
+        try {
+            const ref = await fetchAndClamp(
+                pr,
+                headSha,
+                `src/main/java/${impPath}`,
+                sourceOpts.maxChars,
+                "... SOURCE FILE CLAMPED ..."
+            );
+            refs.push(ref);
+        } catch {
+            // ignore fetch errors, just skip the file
+        }
+    }
+
+    return refs;
+}
+
 // ----------------------------------------------------------------
 // LIQUIBASE
 // ----------------------------------------------------------------
 
-export function filterLiquibaseFilesFromChanges(
+function filterLiquibaseFilesFromChanges(
     changedFiles: ChangedFile[],
     maxFiles = 10
 ): TextRef[] {
@@ -248,8 +311,8 @@ export function filterLiquibaseFilesFromChanges(
         }));
 }
 
-export async function loadLiquibaseContext(
-    pr: any,
+async function loadLiquibaseContext(
+    pr: VcsPrRef,
     headSha: string,
     changedFiles: ChangedFile[],
     opts: { maxFiles: number; maxChars: number; enableFetchFallback: boolean },

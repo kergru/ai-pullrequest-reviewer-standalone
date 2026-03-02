@@ -31,7 +31,7 @@ export function buildMetaReviewUserPromptWithBudget(input: {
     const state: BudgetState = { remainingChars: maxInputChars, warnings };
 
     const base = [
-        "HUMAN READABLE MARKDOWN LANGUAGE: " + input.language,
+        "MARKDOWN LANGUAGE: " + input.language,
         "",
         "CONTEXT JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),

@@ -25,7 +25,8 @@ export function DiffViewer({ diff }: { diff: string }) {
             line.startsWith("diff --git") ||
             line.startsWith("index ") ||
             line.startsWith("--- ") ||
-            line.startsWith("+++ ")
+            line.startsWith("+++ ") ||
+            line.startsWith("new file mode")
         ) {
             continue;
         }
@@ -86,7 +87,8 @@ export function DiffViewer({ diff }: { diff: string }) {
                     line.startsWith("diff --git") ||
                     line.startsWith("index ") ||
                     line.startsWith("--- ") ||
-                    line.startsWith("+++ ")
+                    line.startsWith("+++ ") ||
+                    line.startsWith("new file mode")
                 ) {
                     return null;
                 }

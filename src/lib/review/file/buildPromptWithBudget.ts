@@ -33,7 +33,7 @@ export function buildFileReviewUserContentWithBudget(input: {
     const parts: string[] = [];
 
     const baseRaw = [
-        "HUMAN READABLE MARKDOWN LANGUAGE: " + input.language,
+        "MARKDOWN LANGUAGE: " + input.language,
         "",
         "JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),
@@ -83,7 +83,8 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             tests.map(t => ({ path: t.path, content: normalizeTextForPrompt(t.content) }))
         );
-        appendBlock(parts, state, "RELATED_TESTS", SYSTEM_TESTFILE_CONTEXT, rendered, {
+        const content = SYSTEM_TESTFILE_CONTEXT + "\n\n" + rendered;
+        appendBlock(parts, state, "RELATED_TESTS", "RELATED TESTS CONTEXT:", content, {
             hardCapChars: capTests,
             marker: `... RELATED TESTS TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -96,7 +97,8 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             sources.map(s => ({ path: s.path, content: normalizeTextForPrompt(s.content) }))
         );
-        appendBlock(parts, state, "RELATED_SOURCES", SYSTEM_SOURCE_FILES_CONTEXT, rendered, {
+        const content = SYSTEM_SOURCE_FILES_CONTEXT + "\n\n" + rendered;
+        appendBlock(parts, state, "RELATED_SOURCES", "RELATED SOURCES CONTEXT:", content, {
             hardCapChars: capSources,
             marker: `... RELATED SOURCES TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,

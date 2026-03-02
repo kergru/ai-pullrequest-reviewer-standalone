@@ -87,7 +87,7 @@ export function clampTextHeadTail(text: string, maxChars: number, marker: string
     return { text: `${head}\n\n${marker}\n\n${tail}`, clamped: true };
 }
 
-export function shouldFetchFileContent(filePath: string, diffText: string) {
+export function shouldAppendFileContent(filePath: string, diffText: string) {
     const SMART_CONTEXT_ENABLED = envBool("OPENAI_SMART_CONTEXT", true);
     if (!SMART_CONTEXT_ENABLED) return { fetch: true, reason: "OPENAI_SMART_CONTEXT=off -> always fetch" };
 
