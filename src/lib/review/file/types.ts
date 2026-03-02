@@ -1,4 +1,4 @@
-import type {ReviewStatus, SeveritySummary} from "@/lib/types";
+import type { ReviewStatus, SeveritySummary } from "@/lib/review";
 
 export type FileReviewContext = {
     diffText: string | null;

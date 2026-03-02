@@ -1,5 +1,3 @@
-import {SYSTEM_TESTFILE_PROMPT} from "@/lib/prompts/testfilePrompt";
-
 export const SYSTEM_META_REVIEW_PROMPT = `
 You are a senior reviewer producing a PR META review.
 
