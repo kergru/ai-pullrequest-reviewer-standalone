@@ -44,6 +44,7 @@ export type SessionDto = {
     jira: null | { key: string; summary: string; description: string; acceptanceCriteria: string };
     prompt: string;
     model: string;
+    language: string;
     files: Array<{
         path: string;
         type: string;
