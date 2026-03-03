@@ -1,4 +1,4 @@
-export const SYSTEM_SOURCE_FILES_CONTEXT = `
+export const SYSTEM_SOURCE_FILES_PROPMT = `
 Validate maintainability/readability/best practices in addition to correctness/security/performance.
 Check that comments match the code they describe and are helpful (not misleading).
 

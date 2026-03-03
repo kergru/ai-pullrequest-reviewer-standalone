@@ -1,4 +1,4 @@
-export const SYSTEM_TESTFILE_CONTEXT = `
+export const SYSTEM_TESTFILE_PROMPT = `
 - Use Gherkin syntax with Given-When-Then.
 - Method name format: given[condition]_when[action]_then[expectedResult].
 - Validate coverage for related source files.

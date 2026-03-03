@@ -38,3 +38,22 @@ export function normalizePath(p: string | undefined | null) {
         .replace(/^\/+/, "")
         .replace(/\\/g, "/");
 }
+
+export function normalizeTextForPrompt(text: string): string {
+    return String(text ?? "").replace(/\u0000/g, "");
+}
+
+export function isJavaSourceFile(path: string) {
+    const p = normalizePath(path).toLowerCase();
+    return p.endsWith(".java") && p.includes("src/main/java/");
+}
+
+export function isJavaTestFile(path: string) {
+    const p = normalizePath(path).toLowerCase();
+    return p.endsWith(".java") && p.includes("src/test/java/");
+}
+
+export function isLiquibaseFile(path: string) {
+    const l = normalizePath(path).toLowerCase();
+    return l.includes("/resources/db/") || l.includes("liquibase");
+}

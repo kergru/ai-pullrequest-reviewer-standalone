@@ -12,9 +12,20 @@ export async function prepareFileReviewContext(
 ): Promise<FileReviewContext> {
     const headSha = session.pr.headSha;
 
-    const diffText = await getDiffForFile(session, filePath);
+    let diffText = await getDiffForFile(session, filePath);
     if (!diffText) {
         throw new Error(`No diff found for filePath=${filePath}. Diff splitter couldn't match.`);
+    } else {
+        // Filter irrelevante header lines
+        const filteredLines = diffText.split("\n").filter(line =>
+            !line.startsWith("diff --git") &&
+            !line.startsWith("index ") &&
+            !line.startsWith("--- ") &&
+            !line.startsWith("+++ ") &&
+            !line.startsWith("new file mode") &&
+            !line.startsWith("@@")
+        );
+        diffText = filteredLines.join("\n");
     }
 
     // -------- FILE CONTENT (optional) --------
@@ -44,19 +55,5 @@ export async function prepareFileReviewContext(
         relatedTests: bundle.relatedTests,
         relatedSources: bundle.relatedSources,
         relatedLiquibase: bundle.relatedLiquibase
-    }
-}
-
-function cacheDiffsIntoSession(
-    session: SessionState,
-    byFile: Map<string, string>
-) {
-    for (const file of session.files) {
-        if (!file.diffText) {
-            const diff = byFile.get(file.path);
-            if (diff) {
-                file.diffText = diff;
-            }
-        }
     }
 }

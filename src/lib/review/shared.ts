@@ -1,4 +1,4 @@
-import { envBool, envInt, extOf } from "@/lib/utils/utilFunctions";
+import {envBool, envInt, extOf, normalizeTextForPrompt} from "@/lib/utils/utilFunctions";
 
 export const CHARS_PER_TOKEN = 4;
 
@@ -55,10 +55,6 @@ export function appendBlock(
         state.warnings.push(`${blockId}_TRUNCATED`);
         state.warnings.push(`${blockId}_TRUNCATED_REMOVED_CHARS:${tr.removedChars}`);
     }
-}
-
-export function normalizeTextForPrompt(text: string): string {
-    return String(text ?? "").replace(/\u0000/g, "");
 }
 
 function truncateWithHeadTail(text: string, maxChars: number, marker: string) {

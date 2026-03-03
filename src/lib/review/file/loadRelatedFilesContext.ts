@@ -1,9 +1,16 @@
 import type { SessionState } from "@/lib/session";
 import type { ChangedFile, ContextBundle, TextRef } from "./types";
+import type { VcsPrRef } from "@/lib/vcs";
 import { vcs } from "@/lib/vcs/client";
 import { clampTextHeadTail } from "@/lib/review/shared";
-import { envBool, envInt } from "@/lib/utils/utilFunctions";
-import {VcsPrRef} from "@/lib/vcs";
+import {
+    envBool,
+    envInt,
+    isJavaSourceFile,
+    isJavaTestFile,
+    isLiquibaseFile,
+    normalizePath
+} from "@/lib/utils/utilFunctions";
 
 export async function loadContextBundle(
     session: SessionState,
@@ -80,28 +87,6 @@ export async function loadContextBundle(
     return { relatedTests, relatedSources, relatedLiquibase };
 }
 
-// ----------------------------------------------------------------
-// FILE TYPE DETECTION
-// ----------------------------------------------------------------
-
-function normalize(p: string) {
-    return p.replaceAll("\\", "/");
-}
-
-function isJavaSourceFile(path: string) {
-    const p = normalize(path).toLowerCase();
-    return p.endsWith(".java") && p.includes("src/main/java/");
-}
-
-function isJavaTestFile(path: string) {
-    const p = normalize(path).toLowerCase();
-    return p.endsWith(".java") && p.includes("src/test/java/");
-}
-
-function isLiquibaseFile(path: string) {
-    const l = normalize(path).toLowerCase();
-    return l.includes("/resources/db/") || l.includes("liquibase");
-}
 
 // ----------------------------------------------------------------
 // RENDER HELPERS
@@ -137,7 +122,7 @@ function sortLiquibaseFirstChangelog(files: TextRef[]) {
 // ----------------------------------------------------------------
 
 function baseNameOf(javaFile: string) {
-    const f = normalize(javaFile);
+    const f = normalizePath(javaFile);
     const name = f.slice(f.lastIndexOf("/") + 1);
     return name.endsWith(".java") ? name.slice(0, -5) : name;
 }
@@ -147,7 +132,7 @@ function stripTestSuffix(name: string) {
 }
 
 function toTargetPackageDir(filePath: string, source: "main" | "test", target: "main" | "test") {
-    const p = normalize(filePath);
+    const p = normalizePath(filePath);
     const re = new RegExp(`^src\\/${source}\\/java\\/`);
     return p.replace(re, `src/${target}/java/`).replace(/\/[^/]+\.java$/, "");
 }
@@ -159,9 +144,20 @@ async function fetchAndClamp(
     maxChars: number,
     clampMsg: string,
 ): Promise<TextRef> {
-    const raw = await vcs.getFileContentAtCommit(pr, path, headSha);
+    let raw = await vcs.getFileContentAtCommit(pr, path, headSha);
+    raw = removeImports(raw);
     const clamped = clampTextHeadTail(raw, maxChars, clampMsg);
     return { path, content: clamped.text };
+}
+
+// remove import and package lines from related content to save space, as they are usually not relevant for review and can be very verbose
+function removeImports(javaContent: string): string {
+    return javaContent
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("package "))
+        .filter((l) => !l.trim().startsWith("import "))
+        .join("\n")
+        .trim();
 }
 
 async function findRelatedTestsForSource(

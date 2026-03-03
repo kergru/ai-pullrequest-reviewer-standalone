@@ -1,4 +1,4 @@
-export const SYSTEM_LIQUIBASE_CONTEXT = `
+export const SYSTEM_LIQUIBASE_PROMPT = `
 Detect file type and apply rules.
 
 CHANGELOG:
