@@ -56,6 +56,7 @@ JSON RULES
 
 2) MARKDOWN (user language EN/DE/RU)
 - Group by category.
+- Add severity emojis: 🛑 blocker, 🔥 major, ⚠️ minor, ✏️ nit.
 - Add line numbers to headings when available.
 - For each finding: Problem, Impact, Recommended fix.
 `.trim();

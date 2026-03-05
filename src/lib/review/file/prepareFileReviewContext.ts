@@ -1,7 +1,7 @@
 import type { FileReviewContext } from "./types";
 import type { SessionState } from "@/lib/session";
 import { vcs } from "@/lib/vcs/client";
-import { clampTextHeadTail, shouldFetchFileContent } from "@/lib/review/shared";
+import { clampTextHeadTail, shouldAppendFileContent } from "@/lib/review/shared";
 import { loadContextBundle } from "@/lib/review/file/loadRelatedFilesContext";
 import { envInt } from "@/lib/utils/utilFunctions";
 import { getDiffForFile } from "@/lib/diff/getDiff";
@@ -12,14 +12,25 @@ export async function prepareFileReviewContext(
 ): Promise<FileReviewContext> {
     const headSha = session.pr.headSha;
 
-    const diffText = await getDiffForFile(session, filePath);
+    let diffText = await getDiffForFile(session, filePath);
     if (!diffText) {
         throw new Error(`No diff found for filePath=${filePath}. Diff splitter couldn't match.`);
+    } else {
+        // Filter irrelevante header lines
+        const filteredLines = diffText.split("\n").filter(line =>
+            !line.startsWith("diff --git") &&
+            !line.startsWith("index ") &&
+            !line.startsWith("--- ") &&
+            !line.startsWith("+++ ") &&
+            !line.startsWith("new file mode") &&
+            !line.startsWith("@@")
+        );
+        diffText = filteredLines.join("\n");
     }
 
     // -------- FILE CONTENT (optional) --------
     let fileContent = "";
-    const decision = shouldFetchFileContent(filePath, diffText);
+    const decision = shouldAppendFileContent(filePath, diffText);
 
     if (decision.fetch && headSha) {
         try {
@@ -36,7 +47,7 @@ export async function prepareFileReviewContext(
     }
 
     // context files
-    const bundle = await loadContextBundle(session, filePath, headSha);
+    const bundle = await loadContextBundle(session, filePath, fileContent, headSha);
 
     return {
         diffText,
@@ -44,19 +55,5 @@ export async function prepareFileReviewContext(
         relatedTests: bundle.relatedTests,
         relatedSources: bundle.relatedSources,
         relatedLiquibase: bundle.relatedLiquibase
-    }
-}
-
-function cacheDiffsIntoSession(
-    session: SessionState,
-    byFile: Map<string, string>
-) {
-    for (const file of session.files) {
-        if (!file.diffText) {
-            const diff = byFile.get(file.path);
-            if (diff) {
-                file.diffText = diff;
-            }
-        }
     }
 }

@@ -1,4 +1,4 @@
-import { envBool, envInt, extOf } from "@/lib/utils/utilFunctions";
+import {envBool, envInt, extOf, normalizeTextForPrompt} from "@/lib/utils/utilFunctions";
 
 export const CHARS_PER_TOKEN = 4;
 
@@ -57,10 +57,6 @@ export function appendBlock(
     }
 }
 
-export function normalizeTextForPrompt(text: string): string {
-    return String(text ?? "").replace(/\u0000/g, "");
-}
-
 function truncateWithHeadTail(text: string, maxChars: number, marker: string) {
     const s = String(text ?? "");
     if (s.length <= maxChars) return { text: s, truncated: false, removedChars: 0 };
@@ -87,7 +83,7 @@ export function clampTextHeadTail(text: string, maxChars: number, marker: string
     return { text: `${head}\n\n${marker}\n\n${tail}`, clamped: true };
 }
 
-export function shouldFetchFileContent(filePath: string, diffText: string) {
+export function shouldAppendFileContent(filePath: string, diffText: string) {
     const SMART_CONTEXT_ENABLED = envBool("OPENAI_SMART_CONTEXT", true);
     if (!SMART_CONTEXT_ENABLED) return { fetch: true, reason: "OPENAI_SMART_CONTEXT=off -> always fetch" };
 

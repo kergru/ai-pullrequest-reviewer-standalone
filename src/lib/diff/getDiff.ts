@@ -8,7 +8,7 @@ export async function getDiffForFile(session: SessionState, filePath: string) {
     const fileEntry = session.files?.find((f) => f.path === lookupKey);
     if (fileEntry?.diffText) return fileEntry.diffText;
 
-    const diff = getFromMap(session.diffMap, lookupKey);
+    let diff = getFromMap(session.diffMap, lookupKey);
     if (diff) return diff;
 
     const fullDiff = await vcs.getDiff(session.pr);
@@ -28,8 +28,8 @@ export async function getDiffForFile(session: SessionState, filePath: string) {
         }
     }
 
-    const diff2 = getFromMap(session.diffMap, lookupKey) ?? null;
-    return diff2;
+    diff = getFromMap(session.diffMap, lookupKey) ?? null;
+    return diff;
 }
 
 function splitUnifiedDiffByFile(full: string): Map<string, string> {
@@ -119,13 +119,14 @@ function normalizeKey(path: string) {
     return key;
 }
 
-function getFromMap(diffMap: Map<string,string> | undefined, lookupKey: string) {
+function getFromMap(diffMap: Map<string, string> | undefined, lookupKey: string) {
     if (diffMap && diffMap instanceof Map) {
         let d = diffMap.get(lookupKey);
         if (d) return d;
-        d = diffMap.get(lookupKey.replace("src/main/java/", ""));
+        // Entferne beliebige Präfixe vor src/main/java/ oder src/test/java/
+        d = diffMap.get(lookupKey.replace(/.*src\/main\/java\//, ""));
         if (d) return d;
-        d = diffMap.get(lookupKey.replace("src/test/java/", ""));
+        d = diffMap.get(lookupKey.replace(/.*src\/test\/java\//, ""));
         if (d) return d;
     }
     return null;

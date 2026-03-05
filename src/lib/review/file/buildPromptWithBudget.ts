@@ -1,14 +1,19 @@
-import { SYSTEM_SOURCE_FILES_CONTEXT } from "@/lib/prompts/sourcefilePrompt";
-import { SYSTEM_TESTFILE_CONTEXT } from "@/lib/prompts/testfilePrompt";
-import { SYSTEM_LIQUIBASE_CONTEXT } from "@/lib/prompts/liquibasePrompt";
 import { SYSTEM_REVIEW_PROMPT } from "@/lib/prompts/fileReviewPrompt";
+import {SYSTEM_SOURCE_FILES_PROPMT} from "@/lib/prompts/sourcefilePrompt";
+import {SYSTEM_TESTFILE_PROMPT} from "@/lib/prompts/testfilePrompt";
+import {SYSTEM_LIQUIBASE_PROMPT} from "@/lib/prompts/liquibasePrompt";
 import {
     appendBlock,
     CHARS_PER_TOKEN,
     estimateTokens, getInputTokenLimit, getOutputTokenLimit,
-    normalizeTextForPrompt
 } from "@/lib/review/shared";
-import { envInt } from "@/lib/utils/utilFunctions";
+import {
+    envInt,
+    isJavaSourceFile,
+    isJavaTestFile,
+    isLiquibaseFile,
+    normalizeTextForPrompt
+} from "@/lib/utils/utilFunctions";
 import type { BudgetState } from "@/lib/review/shared";
 import type { FileReviewContext } from "@/lib/review/file/types";
 
@@ -33,14 +38,21 @@ export function buildFileReviewUserContentWithBudget(input: {
     const parts: string[] = [];
 
     const baseRaw = [
-        "HUMAN READABLE MARKDOWN LANGUAGE: " + input.language,
         "",
+        "MARKDOWN LANGUAGE: " + input.language,
         "JIRA-ISSUE:",
         JSON.stringify(input.jira ?? {}, null, 2),
-        "",
         `FILE: ${input.filePath}`,
-        "",
-    ].join("\n");
+    ].join("\n\n");
+
+    let validationRules: string | null = null;
+    if(isJavaSourceFile(input.filePath)) {
+        validationRules = SYSTEM_SOURCE_FILES_PROPMT;
+    } else if (isJavaTestFile(input.filePath)) {
+        validationRules = SYSTEM_TESTFILE_PROMPT;
+    } else if (isLiquibaseFile(input.filePath)) {
+        validationRules = SYSTEM_LIQUIBASE_PROMPT;
+    }
 
     // state starts with max budget
     const state: BudgetState = { remainingChars: maxInputChars, warnings };
@@ -52,6 +64,8 @@ export function buildFileReviewUserContentWithBudget(input: {
     const capTests = envInt("OPENAI_BUDGET_TESTS_CHARS", 18_000);
     const capSources = envInt("OPENAI_BUDGET_SOURCES_CHARS", 12_000);
     const capLiquibase = envInt("OPENAI_BUDGET_LIQUIBASE_CHARS", 12_000);
+
+    appendBlock(parts, state, "VALIDATION_RULES", "VALIDATION RULES:", validationRules ?? "", {});
 
     appendBlock(parts, state, "USER INSTRUCTIONS", "USER INSTRUCTIONS:", input.userPrompt, {});
 
@@ -83,7 +97,7 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             tests.map(t => ({ path: t.path, content: normalizeTextForPrompt(t.content) }))
         );
-        appendBlock(parts, state, "RELATED_TESTS", SYSTEM_TESTFILE_CONTEXT, rendered, {
+        appendBlock(parts, state, "RELATED_TESTS", "RELATED TESTS CONTEXT:", rendered, {
             hardCapChars: capTests,
             marker: `... RELATED TESTS TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -96,7 +110,7 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             sources.map(s => ({ path: s.path, content: normalizeTextForPrompt(s.content) }))
         );
-        appendBlock(parts, state, "RELATED_SOURCES", SYSTEM_SOURCE_FILES_CONTEXT, rendered, {
+        appendBlock(parts, state, "RELATED_SOURCES", "RELATED SOURCES CONTEXT:", rendered, {
             hardCapChars: capSources,
             marker: `... RELATED SOURCES TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
@@ -109,7 +123,7 @@ export function buildFileReviewUserContentWithBudget(input: {
         const rendered = renderRelatedFilesBlock(
             lb.map(f => ({ path: f.path, content: normalizeTextForPrompt(f.content) }))
         );
-        appendBlock(parts, state, "LIQUIBASE CONTEXT:", SYSTEM_LIQUIBASE_CONTEXT, rendered, {
+        appendBlock(parts, state, "LIQUIBASE CONTEXT:", "LIQUIBASE CONTEXT:", rendered, {
             hardCapChars: capLiquibase,
             marker: `... LIQUIBASE CONTEXT TRUNCATED (limit ~${inputLimitTokens} tokens) ...`,
             minKeepChars: 800,
