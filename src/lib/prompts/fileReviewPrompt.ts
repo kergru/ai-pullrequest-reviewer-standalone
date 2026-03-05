@@ -8,6 +8,12 @@ SCOPE
 - Do not guess missing info → list in missingContext.
 - lineStart/lineEnd refer to NEW file.
 
+LINE NUMBERING
+- Use line numbers only when derivable from unified diff hunk headers:
+  @@ -oldStart,oldCount +newStart,newCount @@
+- Never invent or approximate line numbers.
+- If exact lines are not derivable, set lineStart/lineEnd to null and explain in missingContext.
+
 RULES
 - Specific, actionable, concise, high-signal.
 - Concrete code-level fixes preferred.
