@@ -16,14 +16,11 @@ export async function prepareFileReviewContext(
     if (!diffText) {
         throw new Error(`No diff found for filePath=${filePath}. Diff splitter couldn't match.`);
     } else {
-        // Filter irrelevante header lines
+        // Keep unified diff line anchors (`@@ ... @@`) so the model can map findings to real file lines.
+        // Drop only noisy transport headers that do not help review quality.
         const filteredLines = diffText.split("\n").filter(line =>
             !line.startsWith("diff --git") &&
-            !line.startsWith("index ") &&
-            !line.startsWith("--- ") &&
-            !line.startsWith("+++ ") &&
-            !line.startsWith("new file mode") &&
-            !line.startsWith("@@")
+            !line.startsWith("index ")
         );
         diffText = filteredLines.join("\n");
     }
